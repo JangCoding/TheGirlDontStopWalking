@@ -1,0 +1,2435 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Girl Did Not Stop Walking</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Press+Start+2P&family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Phaser 3 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+    <style>
+        :root {
+            --neon-pink: #ff007f;
+            --neon-cyan: #00d2fc;
+            --neon-green: #2ebd59;
+            --bg-dark: #0a0b10;
+            --panel-bg: rgba(18, 20, 32, 0.85);
+            --border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-dark);
+            color: #ffffff;
+            font-family: 'Noto Sans KR', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            background-image: radial-gradient(circle at center, #1a1a2e 0%, #0a0b10 100%);
+        }
+
+        #app-wrapper {
+            position: relative;
+            display: flex;
+            flex-direction: row;
+            align-items: flex-start;
+            gap: 20px;
+            max-width: 1200px;
+            width: 100%;
+            padding: 20px;
+        }
+
+        /* 게임 영역 스타일링 */
+        #game-container-wrapper {
+            position: relative;
+            width: 800px;
+            height: 400px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(0, 210, 252, 0.2), 
+                        inset 0 0 20px rgba(0, 0, 0, 0.8);
+            border: 3px solid var(--neon-cyan);
+            background-color: #000;
+        }
+
+        #phaser-game {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* CRT 스캔라인 효과 */
+        #crt-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 4px, 6px 100%;
+            pointer-events: none;
+            z-index: 10;
+            opacity: 0.75;
+        }
+
+        #crt-vignette {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            box-shadow: inset 0 0 80px rgba(0,0,0,0.8);
+            pointer-events: none;
+            z-index: 11;
+        }
+
+        /* HTML HUD 오버레이 */
+        #hud-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+            padding: 15px;
+            display: none; /* PlayScene 진입 시 JS에서 block으로 켬 */
+            font-family: 'Orbitron', 'Press Start 2P', sans-serif;
+        }
+
+        .hud-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .hud-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 8px 12px;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .hud-title {
+            font-size: 10px;
+            color: #8892b0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .hud-value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #ffffff;
+            text-shadow: 0 0 5px rgba(255,255,255,0.5);
+        }
+
+        /* 인간성 게이지 바 */
+        #humanity-container {
+            width: 220px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        #humanity-bar-outer {
+            width: 100%;
+            height: 14px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid var(--neon-cyan);
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: inset 0 0 4px rgba(0, 212, 252, 0.5);
+        }
+
+        #humanity-bar-inner {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, var(--neon-cyan) 0%, #0077ff 100%);
+            box-shadow: 0 0 8px var(--neon-cyan);
+            transition: width 0.1s ease, background 0.3s ease;
+        }
+
+        /* 디버그/개발자 패널 */
+        #debug-panel {
+            width: 320px;
+            background: var(--panel-bg);
+            border: 2px solid var(--neon-pink);
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 0 20px rgba(255, 0, 127, 0.15);
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        #debug-panel h2 {
+            margin: 0;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 16px;
+            color: var(--neon-pink);
+            text-shadow: 0 0 8px rgba(255, 0, 127, 0.4);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #debug-panel h2 span {
+            font-size: 10px;
+            background: rgba(255, 0, 127, 0.2);
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid var(--neon-pink);
+        }
+
+        .debug-section {
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding-bottom: 10px;
+        }
+
+        .debug-section:last-child {
+            border: none;
+            padding-bottom: 0;
+        }
+
+        .debug-title {
+            font-size: 11px;
+            color: #8892b0;
+            margin-bottom: 6px;
+            font-weight: bold;
+        }
+
+        .debug-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+        }
+
+        .debug-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+            padding: 6px 8px;
+            font-size: 11px;
+            border-radius: 4px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+
+        .debug-btn:hover {
+            background: rgba(255, 0, 127, 0.2);
+            border-color: var(--neon-pink);
+            box-shadow: 0 0 8px rgba(255, 0, 127, 0.3);
+        }
+
+        .debug-btn.active {
+            background: var(--neon-pink);
+            border-color: var(--neon-pink);
+        }
+
+        .debug-slider-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 5px;
+        }
+
+        .debug-slider {
+            flex: 1;
+            accent-color: var(--neon-pink);
+            cursor: pointer;
+        }
+
+        .debug-slider-val {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 12px;
+            width: 35px;
+            text-align: right;
+        }
+
+        /* 로컬 음원 업로드 오버레이용 스타일 */
+        .custom-file-upload {
+            display: inline-block;
+            padding: 6px 12px;
+            cursor: pointer;
+            background: rgba(0, 210, 252, 0.1);
+            border: 1px dashed var(--neon-cyan);
+            border-radius: 4px;
+            font-size: 11px;
+            color: var(--neon-cyan);
+            text-align: center;
+            width: 100%;
+            transition: all 0.2s;
+        }
+
+        .custom-file-upload:hover {
+            background: rgba(0, 210, 252, 0.2);
+            box-shadow: 0 0 8px rgba(0, 210, 252, 0.3);
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        /* 자막 컨테이너 (비디오 폴백용) */
+        #subtitle-overlay {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            font-family: 'Noto Sans KR', sans-serif;
+            font-size: 16px;
+            color: #fff;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8), 0 0 10px rgba(0, 212, 252, 0.5);
+            background: rgba(0,0,0,0.6);
+            padding: 6px 20px;
+            border-radius: 6px;
+            pointer-events: none;
+            z-index: 8;
+            display: none;
+            max-width: 80%;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app-wrapper">
+    <!-- 게임 뷰포트 -->
+    <div id="game-container-wrapper">
+        <!-- CRT 스캔라인 특수효과 -->
+        <div id="crt-overlay"></div>
+        <div id="crt-vignette"></div>
+        
+        <!-- HTML HUD (Phaser Canvas 위에 렌더링) -->
+        <div id="hud-overlay">
+            <!-- 상단 바 -->
+            <div class="hud-row">
+                <!-- 인간성 게이지 -->
+                <div class="hud-card" id="humanity-container">
+                    <div style="display: flex; justify-content: space-between; width: 100%;">
+                        <span class="hud-title">Humanity</span>
+                        <span class="hud-value" id="humanity-text">100%</span>
+                    </div>
+                    <div id="humanity-bar-outer">
+                        <div id="humanity-bar-inner"></div>
+                    </div>
+                </div>
+
+                <!-- 스테이지 이름 및 남은 시간 -->
+                <div class="hud-card" style="flex-direction: column; align-items: center; min-width: 180px;">
+                    <span class="hud-title" id="stage-name-display" style="color: var(--neon-cyan);">저녁 길가</span>
+                    <span class="hud-value" id="time-display">00:00 / 04:51</span>
+                </div>
+
+                <!-- 좀비 콤보 및 알약, 연구원 수 -->
+                <div style="display: flex; gap: 8px;">
+                    <div class="hud-card">
+                        <span class="hud-title">Combo</span>
+                        <span class="hud-value" id="combo-display" style="color: var(--neon-green);">0</span>
+                    </div>
+                    <div class="hud-card">
+                        <span class="hud-title">Pills</span>
+                        <span class="hud-value" id="pills-display" style="color: var(--neon-pink);">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 하단 바 -->
+            <div class="hud-row" style="position: absolute; bottom: 15px; left: 15px; right: 15px; margin-bottom: 0;">
+                <div style="display: flex; gap: 8px;">
+                    <!-- 캐릭터 초상화 오버레이 -->
+                    <div class="hud-card" id="portrait-card" style="padding: 4px 8px; gap: 8px;">
+                        <div id="portrait-box" style="width: 24px; height: 24px; border-radius: 4px; background-color: var(--neon-cyan); border: 1px solid #fff; box-shadow: 0 0 6px var(--neon-cyan); transition: all 0.3s;"></div>
+                        <div style="display: flex; flex-direction: column;">
+                            <span class="hud-title" style="font-size: 8px; line-height: 1; margin-bottom: 2px;">Portrait</span>
+                            <span id="portrait-status" style="font-size: 10px; font-weight: bold; color: var(--neon-cyan);">HUMAN</span>
+                        </div>
+                    </div>
+
+                    <div class="hud-card">
+                        <span class="hud-title">Distance</span>
+                        <span class="hud-value" id="distance-display">0m</span>
+                    </div>
+                </div>
+                
+                <div class="hud-card" id="rescued-card" style="display: none; border-color: var(--neon-cyan);">
+                    <span class="hud-title" style="color: var(--neon-cyan);">CIVILIAN RESCUED</span>
+                    <span class="hud-value" id="rescued-status" style="color: #fff;">NO</span>
+                </div>
+
+                <div class="hud-card">
+                    <span class="hud-title">Zombies Escorted</span>
+                    <span class="hud-value" id="escort-display">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 비디오 폴백 자막 오버레이 -->
+        <div id="subtitle-overlay"></div>
+
+        <!-- Phaser 게임 인스턴스 부착점 -->
+        <div id="phaser-game"></div>
+    </div>
+
+    <!-- 개발자용 실시간 디버그 패널 -->
+    <div id="debug-panel">
+        <h2>
+            DEVELOPER PANEL
+            <span>DEBUG MODE</span>
+        </h2>
+
+        <!-- 시간 및 스테이지 스킵 -->
+        <div class="debug-section">
+            <div class="debug-title">게임 시간 및 스테이지 점프</div>
+            <div class="debug-grid">
+                <button class="debug-btn" onclick="jumpToStage(0)">Stage 1 (저녁)</button>
+                <button class="debug-btn" onclick="jumpToStage(90)">Stage 2 (폐허)</button>
+                <button class="debug-btn" onclick="jumpToStage(180)">Stage 3 (공사장)</button>
+                <button class="debug-btn" onclick="jumpToStage(265)">Epilogue (265초)</button>
+            </div>
+        </div>
+
+        <!-- 게임 배속 조절 -->
+        <div class="debug-section">
+            <div class="debug-title">게임 진행 배속 (Time Scale)</div>
+            <div class="debug-grid" style="grid-template-columns: repeat(4, 1fr);">
+                <button class="debug-btn active" id="ts-1" onclick="setGameTimeScale(1)">1x</button>
+                <button class="debug-btn" id="ts-2" onclick="setGameTimeScale(2)">2x</button>
+                <button class="debug-btn" id="ts-5" onclick="setGameTimeScale(5)">5x</button>
+                <button class="debug-btn" id="ts-10" onclick="setGameTimeScale(10)">10x</button>
+            </div>
+        </div>
+
+        <!-- 인간성 제어 -->
+        <div class="debug-section">
+            <div class="debug-title">인간성 수치 제어 (Humanity)</div>
+            <div class="debug-slider-group">
+                <input type="range" min="0" max="100" value="100" class="debug-slider" id="humanity-slider" oninput="adjustHumanity(this.value)">
+                <span class="debug-slider-val" id="humanity-slider-val">100</span>
+            </div>
+        </div>
+
+        <!-- 미션 데이터 강제 조작 -->
+        <div class="debug-section">
+            <div class="debug-title">미션 조건 강제 달성 (엔딩 분기용)</div>
+            <div class="debug-grid">
+                <button class="debug-btn" onclick="addPillCount(1)">알약 +1개</button>
+                <button class="debug-btn" id="btn-rescue" onclick="toggleRescueStatus()">시민구출: NO</button>
+                <button class="debug-btn" onclick="addZombieCombo(5)">좀비콤보 +5</button>
+                <button class="debug-btn" onclick="clearZombies()">화면좀비 클리어</button>
+            </div>
+        </div>
+
+        <!-- 물리 엔진 디버그 바운딩 박스 그리기 -->
+        <div class="debug-section">
+            <div class="debug-title">시스템 옵션</div>
+            <div class="debug-grid" style="grid-template-columns: 1fr;">
+                <button class="debug-btn" id="btn-hitbox" onclick="toggleHitboxDebug()">히트박스 가시화: OFF</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ==========================================
+    // 1. 게임 글로벌 설정 및 상태 제어 변수들
+    // ==========================================
+    const GAME_CONFIG = {
+        width: 800,
+        height: 400,
+        
+        // 비디오 파일 가상 상대 경로
+        videos: {
+            opening: './assets/opening.mp4',
+            endingNormal: './assets/ending_normal.mp4',
+            endingTrue: './assets/ending_true.mp4'
+        },
+
+        // 스테이지 타임라인 정의 (BGM 재생 초 기준)
+        stages: [
+            { time: 0,   name: "저녁 길가 (Evening Street)", bgColor: 0xd88d55, scrollSpeed: 1.5, zombieRate: 2000 },
+            { time: 90,  name: "폐허 (Ruins)", bgColor: 0x3a4f7c, scrollSpeed: 2.0, zombieRate: 1500 },
+            { time: 180, name: "공사장 (Construction Site)", bgColor: 0x111625, scrollSpeed: 2.5, zombieRate: 1000 }
+        ],
+
+        epilogueTime: 270,    // 4분 30초 (에필로그 씬 전환)
+        endingTime: 291,      // 4분 51초 (에필로그에서 절벽 끝 도달 후 엔딩 분기 시작)
+        
+        // 진엔딩 트리거 최저 요구 조건
+        minPillsForTrueEnding: 5,
+        minComboForTrueEnding: 15,
+
+        // 플레이어 기본 사양
+        maxHumanity: 100,
+        humanityLossPerSec: 1.5,  // 초당 인간성 기본 감소율
+        humanityRestorePill: 20,  // 알약 회복량
+        humanityLossOnHit: 10,    // 좀비 접촉 피해
+        invincibilityDuration: 1000,
+        attackCooldown: 400
+    };
+
+    // 전역 상태 변수들 (Phaser와 HTML 디버그 패널 간 브릿지)
+    window.gameData = {
+        elapsedTime: 0,           // 현재 흐른 게임 시간 (초)
+        pillsCollected: 0,        // 획득한 알약 수
+        isScientistRescued: false,// 연구원 구출 여부
+        maxZombieCombo: 0,        // 최대 실시간 그룹 좀비 수
+        totalEscortedCount: 0,    // 지금까지 무리로 만든 좀비 누적 수
+        distanceWalked: 0,        // 이동 거리 (m)
+        currentHumanity: 100,     // 실시간 인간성 수치
+        timeScale: 1,             // 게임 배속 배율
+        showHitboxes: false,      // 물리 디버그 플래그
+        bgmSelected: false,       // 유저 선택 BGM 유무
+        useOpeningFallback: true, // 오프닝 영상 로드 에러 시 폴백 전환용 플래그
+        useEndingNormalFallback: true,
+        useEndingTrueFallback: true
+    };
+
+    // BGM 오디오 플레이어 인스턴스 (HTML5 Audio 사용)
+    window.bgmPlayer = new Audio();
+    window.bgmPlayer.loop = false; // 타임라인 동기화 완결을 위해 루프 끔
+    window.bgmPlayerVolume = 0.5;
+    window.bgmPlayer.volume = window.bgmPlayerVolume;
+
+    // Web Audio API 오디오 합성용 폴백 플레이어 (유저 음악 없을 때 구동)
+    let synthInterval = null;
+    function startSynthBeat() {
+        if (synthInterval) clearInterval(synthInterval);
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        synthInterval = setInterval(() => {
+            if (window.bgmPlayer && !window.bgmPlayer.paused) return; // 유저 음악 실행 중이면 합성 끔
+            // 단순 템포 비트음 생성
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.value = (window.gameData.elapsedTime >= GAME_CONFIG.epilogueTime) ? 100 : 150; // 에필로그 시 아웃로 묵직한 톤
+            gain.gain.setValueAtTime(0.08, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.35);
+        }, 1000); // 1초 주기의 메트로놈성 비트 폴백
+    }
+
+    function stopSynthBeat() {
+        if (synthInterval) {
+            clearInterval(synthInterval);
+            synthInterval = null;
+        }
+    }
+
+    // ==========================================
+    // 2. 디버그 조작 API 정의 (HTML UI 연동)
+    // ==========================================
+    function jumpToStage(targetSec) {
+        window.gameData.elapsedTime = targetSec;
+        if (window.bgmPlayer && window.bgmPlayer.src && !window.bgmPlayer.paused) {
+            window.bgmPlayer.currentTime = targetSec;
+        }
+        
+        // Phaser 현재 활성화된 씬 받아오기
+        const activeScene = phaserGame.scene.getScene('PlayScene');
+        if (phaserGame.scene.isActive('PlayScene') && activeScene) {
+            activeScene.syncTimeToStage(targetSec);
+        } else if (phaserGame.scene.isActive('EndingScene')) {
+            // 에필로그 도중 앞 시간으로 건너뛰면 다시 PlayScene으로 돌아감
+            if (targetSec < GAME_CONFIG.epilogueTime) {
+                phaserGame.scene.stop('EndingScene');
+                phaserGame.scene.start('PlayScene');
+            } else {
+                // EndingScene 내부에서 시간 이동
+                const endingScene = phaserGame.scene.getScene('EndingScene');
+                if (endingScene) endingScene.jumpTime(targetSec);
+            }
+        } else if (phaserGame.scene.isActive('IntroScene')) {
+            // 오프닝 영상 스킵
+            const introScene = phaserGame.scene.getScene('IntroScene');
+            if (introScene) introScene.skipIntro();
+        }
+    }
+
+    function setGameTimeScale(scale) {
+        window.gameData.timeScale = scale;
+        // 디버그 패널 액티브 상태 갱신
+        document.querySelectorAll('#debug-panel .debug-btn[id^="ts-"]').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.getElementById(`ts-${scale}`).classList.add('active');
+        
+        // 오디오 재생 속도도 싱크
+        if (window.bgmPlayer && window.bgmPlayer.src) {
+            window.bgmPlayer.playbackRate = scale;
+        }
+    }
+
+    function adjustHumanity(val) {
+        window.gameData.currentHumanity = parseFloat(val);
+        document.getElementById('humanity-slider-val').innerText = val;
+        
+        const activeScene = phaserGame.scene.getScene('PlayScene');
+        if (activeScene && phaserGame.scene.isActive('PlayScene')) {
+            activeScene.player.updateHumanity(0); // FSM 강제 갱신 트리거
+        }
+    }
+
+    function addPillCount(amount) {
+        window.gameData.pillsCollected += amount;
+        document.getElementById('pills-display').innerText = window.gameData.pillsCollected;
+    }
+
+    function toggleRescueStatus() {
+        window.gameData.isScientistRescued = !window.gameData.isScientistRescued;
+        const btn = document.getElementById('btn-rescue');
+        btn.innerText = `시민구출: ${window.gameData.isScientistRescued ? 'YES' : 'NO'}`;
+        
+        const card = document.getElementById('rescued-card');
+        const status = document.getElementById('rescued-status');
+        if (window.gameData.isScientistRescued) {
+            card.style.display = 'flex';
+            status.innerText = 'RESCUED';
+            status.style.color = 'var(--neon-cyan)';
+        } else {
+            card.style.display = 'none';
+        }
+    }
+
+    function addZombieCombo(amount) {
+        window.gameData.totalEscortedCount += amount;
+        window.gameData.maxZombieCombo = Math.max(window.gameData.maxZombieCombo, window.gameData.totalEscortedCount);
+        
+        document.getElementById('combo-display').innerText = window.gameData.totalEscortedCount;
+        document.getElementById('escort-display').innerText = window.gameData.totalEscortedCount;
+        
+        const activeScene = phaserGame.scene.getScene('PlayScene');
+        if (activeScene && phaserGame.scene.isActive('PlayScene')) {
+            activeScene.addZombiesToHorde(amount);
+        }
+    }
+
+    function clearZombies() {
+        const activeScene = phaserGame.scene.getScene('PlayScene');
+        if (activeScene && phaserGame.scene.isActive('PlayScene')) {
+            activeScene.zombieGroup.getChildren().forEach(zombie => {
+                zombie.deactivate();
+            });
+        }
+    }
+
+    function toggleHitboxDebug() {
+        window.gameData.showHitboxes = !window.gameData.showHitboxes;
+        const btn = document.getElementById('btn-hitbox');
+        btn.innerText = `히트박스 가시화: ${window.gameData.showHitboxes ? 'ON' : 'OFF'}`;
+        
+        const playScene = phaserGame.scene.getScene('PlayScene');
+        if (playScene && phaserGame.scene.isActive('PlayScene')) {
+            // Phaser 피직스 디버그 그리기 런타임 제어
+            playScene.physics.world.drawDebug = window.gameData.showHitboxes;
+            if (!window.gameData.showHitboxes) {
+                playScene.physics.world.debugGraphic.clear();
+            }
+        }
+    }
+
+    // 자막 표출 헬퍼 함수
+    function showSubtitle(text, duration = 3000) {
+        const overlay = document.getElementById('subtitle-overlay');
+        overlay.innerText = text;
+        overlay.style.display = 'block';
+        
+        // 기존 타이머 제거 방지 위해 씬 타임아웃 대신 간단한 타이머
+        if (window.subtitleTimer) clearTimeout(window.subtitleTimer);
+        window.subtitleTimer = setTimeout(() => {
+            overlay.style.display = 'none';
+        }, duration / window.gameData.timeScale);
+    }
+
+    // ==========================================
+    // 3. Phaser 3 게임 엔진 정의 및 씬들 구현
+    // ==========================================
+    
+    // [BOOT SCENE]: 픽셀아트 느낌의 도형 텍스처를Canvas API로 동적 생성
+    class BootScene extends Phaser.Scene {
+        constructor() {
+            super('BootScene');
+        }
+
+        preload() {
+            showSubtitle("리소스를 생성하고 준비하는 중...", 2000);
+            
+            // 3.5 비디오 프리로드 테스트 (브라우저 경로 에러 시 캐치하도록 이벤트 바인드)
+            // 비디오 파일들은 로드 성공/실패 여부를 리스너로 판정함
+            this.load.on('loaderror', (file) => {
+                if (file.key === 'opening_vid') window.gameData.useOpeningFallback = true;
+                if (file.key === 'ending_norm_vid') window.gameData.useEndingNormalFallback = true;
+                if (file.key === 'ending_true_vid') window.gameData.useEndingTrueFallback = true;
+                console.warn(`비디오 로드 실패 (도형 폴백 사용 가능): ${file.src}`);
+            });
+
+            this.load.on('filecomplete-video-opening_vid', () => { window.gameData.useOpeningFallback = false; });
+            this.load.on('filecomplete-video-ending_norm_vid', () => { window.gameData.useEndingNormalFallback = false; });
+            this.load.on('filecomplete-video-ending_true_vid', () => { window.gameData.useEndingTrueFallback = false; });
+
+            // 비디오 등록 시도
+            this.load.video('opening_vid', GAME_CONFIG.videos.opening, 'loadeddata', false, false);
+            this.load.video('ending_norm_vid', GAME_CONFIG.videos.endingNormal, 'loadeddata', false, false);
+            this.load.video('ending_true_vid', GAME_CONFIG.videos.endingTrue, 'loadeddata', false, false);
+        }
+
+        create() {
+            // 사각형 기반 텍스처를 캔버스로 동적 드로잉
+            this.createPixelTexture('player_normal', 32, 32, (ctx) => {
+                ctx.fillStyle = '#00d2fc'; // 하늘색 몸체
+                ctx.fillRect(0, 0, 32, 32);
+                ctx.fillStyle = '#ffffff'; // 눈
+                ctx.fillRect(6, 6, 6, 8);
+                ctx.fillStyle = '#000000'; // 눈동자 (좌향)
+                ctx.fillRect(6, 8, 3, 4);
+                ctx.fillStyle = '#1e3d59'; // 옷 장식
+                ctx.fillRect(8, 20, 16, 12);
+            });
+
+            this.createPixelTexture('player_infecting', 32, 32, (ctx) => {
+                ctx.fillStyle = '#5cc8a6'; // 민트색 (감염중)
+                ctx.fillRect(0, 0, 32, 32);
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(6, 8, 6, 6);
+                ctx.fillStyle = '#ff0055'; // 충혈된 동공
+                ctx.fillRect(6, 9, 3, 3);
+                ctx.fillStyle = '#223e36';
+                ctx.fillRect(8, 20, 16, 12);
+            });
+
+            this.createPixelTexture('player_infected', 32, 32, (ctx) => {
+                ctx.fillStyle = '#2c7a5f'; // 탁한 녹색 (감염완료)
+                ctx.fillRect(0, 0, 32, 32);
+                ctx.fillStyle = '#ff3f3f'; // 완전 붉은 눈
+                ctx.fillRect(4, 8, 8, 8);
+                ctx.fillStyle = '#ffffff'; // 핏발
+                ctx.fillRect(5, 11, 2, 2);
+                ctx.fillStyle = '#1c3129';
+                ctx.fillRect(8, 20, 16, 12);
+            });
+
+            this.createPixelTexture('zombie_normal', 32, 32, (ctx) => {
+                ctx.fillStyle = '#2ebd59'; // 일반좀비 녹색
+                ctx.fillRect(0, 0, 32, 32);
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(4, 6, 6, 6);
+                ctx.fillStyle = '#000000'; // 초점 없는 눈동자
+                ctx.fillRect(5, 7, 3, 3);
+                ctx.fillStyle = '#3c4043'; // 잿빛 누더기 옷
+                ctx.fillRect(8, 16, 16, 16);
+            });
+
+            this.createPixelTexture('zombie_runner', 32, 32, (ctx) => {
+                ctx.fillStyle = '#ff3f3f'; // 돌진좀비 빨간색
+                ctx.fillRect(0, 0, 32, 32);
+                ctx.fillStyle = '#ffff00'; // 노란 희번득한 눈
+                ctx.fillRect(4, 6, 6, 6);
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(4, 7, 3, 3);
+                ctx.fillStyle = '#1a0000'; // 검은 가죽 재킷 느낌
+                ctx.fillRect(8, 16, 16, 16);
+            });
+
+            this.createPixelTexture('zombie_stalker', 32, 32, (ctx) => {
+                ctx.fillStyle = '#4f4f4f'; // 상자속좀비 어두운 회색
+                ctx.fillRect(0, 0, 32, 32);
+                ctx.fillStyle = '#00ffff'; // 형광 하늘색 눈
+                ctx.fillRect(4, 6, 6, 6);
+                ctx.fillStyle = '#2c3e50';
+                ctx.fillRect(8, 16, 16, 16);
+            });
+
+            this.createPixelTexture('box', 40, 40, (ctx) => {
+                ctx.fillStyle = '#a0522d'; // 나무상자 브라운
+                ctx.fillRect(0, 0, 40, 40);
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = '#5c2d16'; // 짙은 테두리
+                ctx.strokeRect(2, 2, 36, 36);
+                // X자 나무 판자 선 표현
+                ctx.beginPath();
+                ctx.moveTo(4, 4);
+                ctx.lineTo(36, 36);
+                ctx.moveTo(36, 4);
+                ctx.lineTo(4, 36);
+                ctx.stroke();
+            });
+
+            this.createPixelTexture('scientist', 32, 32, (ctx) => {
+                ctx.fillStyle = '#f5f5f5'; // 흰색 의사가운
+                ctx.fillRect(0, 0, 32, 32);
+                ctx.fillStyle = '#ffcc99'; // 살구색 피부
+                ctx.fillRect(4, 4, 12, 10);
+                ctx.fillStyle = '#00d2fc'; // 안경 표현
+                ctx.fillRect(4, 6, 8, 4);
+                ctx.fillStyle = '#333333';
+                ctx.fillRect(6, 18, 20, 14);
+            });
+
+            this.createPixelTexture('pill', 16, 16, (ctx) => {
+                // 핑크 캡슐약
+                ctx.fillStyle = '#ff69b4';
+                ctx.beginPath();
+                ctx.arc(8, 8, 6, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(8, 2, 6, 12);
+            });
+
+            this.createPixelTexture('weapon_bat', 48, 12, (ctx) => {
+                ctx.fillStyle = '#d7a15c'; // 오크색 목재 방망이
+                ctx.fillRect(0, 3, 38, 6);
+                ctx.fillStyle = '#a0522d'; // 손잡이
+                ctx.fillRect(38, 2, 10, 8);
+            });
+
+            this.createPixelTexture('particle_wood', 8, 8, (ctx) => {
+                ctx.fillStyle = '#a0522d';
+                ctx.fillRect(0, 0, 8, 8);
+            });
+
+            this.createPixelTexture('particle_zombie', 8, 8, (ctx) => {
+                ctx.fillStyle = '#2ebd59';
+                ctx.fillRect(0, 0, 8, 8);
+            });
+
+            this.createPixelTexture('particle_vaccine', 6, 6, (ctx) => {
+                ctx.fillStyle = '#ff00ff';
+                ctx.fillRect(0, 0, 6, 6);
+            });
+
+            this.scene.start('TitleScene');
+        }
+
+        createPixelTexture(key, width, height, drawCallback) {
+            let canvas = this.textures.createCanvas(key, width, height);
+            let ctx = canvas.context;
+            drawCallback(ctx);
+            canvas.refresh();
+        }
+    }
+
+    // [TITLE SCENE]: 시작 화면 및 로컬 BGM 업로드 유도
+    class TitleScene extends Phaser.Scene {
+        constructor() {
+            super('TitleScene');
+        }
+
+        create() {
+            document.getElementById('hud-overlay').style.display = 'none';
+
+            // 타이틀 배경 연출
+            this.cameras.main.setBackgroundColor('#0d0f18');
+            
+            // 네온 텍스트
+            const title = this.add.text(400, 120, 'The Girl Did Not Stop Walking', {
+                fontFamily: 'Orbitron',
+                fontSize: '28px',
+                fontWeight: 'bold',
+                fill: '#00d2fc'
+            }).setOrigin(0.5);
+            
+            // 반짝이는 효과
+            this.tweens.add({
+                targets: title,
+                alpha: 0.4,
+                duration: 800,
+                yoyo: true,
+                repeat: -1
+            });
+
+            this.add.text(400, 165, '그녀는 멈추지 않았다, 등 뒤의 무리와 함께.', {
+                fontFamily: 'Noto Sans KR',
+                fontSize: '14px',
+                fill: '#8892b0'
+            }).setOrigin(0.5);
+
+            // BGM 파일 로드용 HTML 버튼 동적 오버레이
+            const htmlElement = this.add.dom(400, 240).createFromHTML(`
+                <div style="display: flex; flex-direction: column; gap: 10px; width: 280px; align-items:center;">
+                    <label class="custom-file-upload">
+                        <input type="file" id="bgm-file-input" accept="audio/*">
+                        🎵 게임용 음악 파일(BGM) 로드하기
+                    </label>
+                    <span id="bgm-file-name" style="font-size:11px; color:#8892b0; text-align:center;">선택된 음악 없음 (폴백 메트로놈 구동)</span>
+                </div>
+            `);
+
+            // DOM 이벤트 연결
+            const fileInput = document.getElementById('bgm-file-input');
+            const fileNameSpan = document.getElementById('bgm-file-name');
+
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    window.bgmPlayer.src = URL.createObjectURL(file);
+                    window.bgmPlayer.load();
+                    window.gameData.bgmSelected = true;
+                    fileNameSpan.innerText = `재생 준비됨: ${file.name}`;
+                    fileNameSpan.style.color = 'var(--neon-green)';
+                    showSubtitle(`음원 분석 완료. 타임라인 매칭 성공.`, 2500);
+                }
+            });
+
+            // 게임 시작 버튼
+            const startBtn = this.add.rectangle(400, 310, 180, 45, 0xff007f).setInteractive({ useHandCursor: true });
+            const startText = this.add.text(400, 310, '게임 시작', {
+                fontFamily: 'Noto Sans KR',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                fill: '#ffffff'
+            }).setOrigin(0.5);
+
+            // 버튼 애니메이션 효과
+            startBtn.on('pointerover', () => {
+                startBtn.setFillStyle(0xff3399);
+                this.tweens.add({ targets: startText, scale: 1.1, duration: 100 });
+            });
+            startBtn.on('pointerout', () => {
+                startBtn.setFillStyle(0xff007f);
+                this.tweens.add({ targets: startText, scale: 1.0, duration: 100 });
+            });
+
+            startBtn.on('pointerdown', () => {
+                // 브라우저 Autoplay 정책 해제를 위한 사용자 첫 터치 시점에 BGM 재생 준비
+                if (window.gameData.bgmSelected) {
+                    window.bgmPlayer.play().then(() => {
+                        console.log("로컬 BGM 재생 성공 (Autoplay 우회 완료)");
+                    }).catch(err => {
+                        console.warn("오디오 재생 거부당함: ", err);
+                    });
+                } else {
+                    // 폴백 메트로놈 비트 시동
+                    startSynthBeat();
+                }
+                
+                // 오프닝 연출 씬으로 전환
+                this.cameras.main.fadeOut(800, 0, 0, 0);
+                this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+                    this.scene.start('IntroScene');
+                });
+            });
+        }
+    }
+
+    // [INTRO SCENE]: 오프닝 영상 플레이 (또는 텍스트 자막 폴백 시네마틱)
+    class IntroScene extends Phaser.Scene {
+        constructor() {
+            super('IntroScene');
+            this.introSkipped = false;
+        }
+
+        create() {
+            this.introSkipped = false;
+            this.cameras.main.setBackgroundColor('#000000');
+            this.cameras.main.fadeIn(500, 0, 0, 0);
+
+            // 스킵 안내용 텍스트
+            const skipGuide = this.add.text(780, 20, '화면을 클릭하면 인트로 스킵', {
+                fontFamily: 'Noto Sans KR',
+                fontSize: '11px',
+                fill: '#8892b0'
+            }).setOrigin(1, 0).setDepth(20);
+
+            this.input.on('pointerdown', () => {
+                this.skipIntro();
+            });
+
+            // 비디오 파일이 없고 로드에 실패했거나 예외가 난 경우 -> 폴백 사각형 인트로 씬 가동
+            if (window.gameData.useOpeningFallback) {
+                this.runIntroFallback();
+            } else {
+                // 비디오 재생 시도
+                try {
+                    this.video = this.add.video(400, 200, 'opening_vid');
+                    this.video.setDisplaySize(800, 400);
+                    this.video.play();
+                    
+                    this.video.on('complete', () => {
+                        this.endIntro();
+                    });
+
+                    this.video.on('error', (err) => {
+                        console.error("비디오 플레이 에러: 폴백 강제 전환", err);
+                        this.video.destroy();
+                        this.runIntroFallback();
+                    });
+                } catch(e) {
+                    this.runIntroFallback();
+                }
+            }
+        }
+
+        runIntroFallback() {
+            showSubtitle("인류가 미처 대응하기도 전에 바이러스가 대지를 삼켰다.", 3500);
+
+            // 좌측 방향으로 달리는 하늘색 사각형(플레이어) 연출 생성
+            const tempPlayer = this.add.rectangle(600, 220, 32, 32, 0x00d2fc);
+            const ground = this.add.rectangle(400, 250, 800, 10, 0x5d4037);
+
+            // 쫓아오는 좀비들
+            const followZombies = [];
+            for (let i = 0; i < 5; i++) {
+                let z = this.add.rectangle(750 + i * 40, 220, 32, 32, 0x2ebd59);
+                followZombies.push(z);
+            }
+
+            // 가로 스크롤 및 자막 시간 연동 트리거들
+            this.tweens.add({
+                targets: [tempPlayer, ...followZombies],
+                x: '-=500',
+                duration: 6000 / window.gameData.timeScale,
+                ease: 'Linear',
+                onUpdate: () => {
+                    // 무리 걷는 느낌의 위아래 상하 흔들림 루틴
+                    tempPlayer.y = 220 + Math.sin(this.time.now * 0.01) * 3;
+                    followZombies.forEach((z, idx) => {
+                        z.y = 220 + Math.sin(this.time.now * 0.01 + idx) * 3;
+                    });
+                }
+            });
+
+            this.time.delayedCall(4000 / window.gameData.timeScale, () => {
+                if (this.introSkipped) return;
+                showSubtitle("살아남기 위해, 그녀는 뒤쪽의 감염 군단을 이끌고 달렸다.", 4000);
+            });
+
+            this.time.delayedCall(8000 / window.gameData.timeScale, () => {
+                this.endIntro();
+            });
+        }
+
+        skipIntro() {
+            if (this.introSkipped) return;
+            this.introSkipped = true;
+            if (this.video) {
+                this.video.stop();
+                this.video.destroy();
+            }
+            this.endIntro();
+        }
+
+        endIntro() {
+            this.cameras.main.fadeOut(800, 0, 0, 0);
+            this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+                document.getElementById('subtitle-overlay').style.display = 'none';
+                this.scene.start('PlayScene');
+            });
+        }
+    }
+
+    // ==========================================
+    // 4. PLAY SCENE: 게임의 중심 플레이 코드
+    // ==========================================
+    class PlayScene extends Phaser.Scene {
+        constructor() {
+            super('PlayScene');
+        }
+
+        create() {
+            // HUD 가시성 활성화
+            document.getElementById('hud-overlay').style.display = 'block';
+            
+            // 데이터 초기화
+            window.gameData.elapsedTime = 0;
+            window.gameData.currentHumanity = GAME_CONFIG.maxHumanity;
+            window.gameData.pillsCollected = 0;
+            window.gameData.isScientistRescued = false;
+            window.gameData.maxZombieCombo = 0;
+            window.gameData.totalEscortedCount = 0;
+            window.gameData.distanceWalked = 0;
+            this.isGameOver = false;
+            
+            document.getElementById('pills-display').innerText = '0';
+            document.getElementById('combo-display').innerText = '0';
+            document.getElementById('escort-display').innerText = '0';
+            document.getElementById('distance-display').innerText = '0m';
+            document.getElementById('rescued-card').style.display = 'none';
+            document.getElementById('btn-rescue').innerText = "시민구출: NO";
+            
+            // 배경 생성 (패럴랙스 레이어: 먼 배경, 중간 지면)
+            this.stageIndex = 0;
+            this.currentStageConfig = GAME_CONFIG.stages[this.stageIndex];
+            
+            this.skyBg = this.add.tileSprite(400, 150, 800, 300, null).setScrollFactor(0);
+            this.updateBackgroundTexture();
+
+            // 바닥 지형 (물리 강체 바닥 대신 높이 고정)
+            this.groundY = 320;
+            this.ground = this.add.tileSprite(400, 360, 800, 80, null);
+            this.updateGroundTexture();
+
+            // 물리 시스템 설정
+            this.physics.world.setBounds(0, 0, 800, 400);
+            this.physics.world.drawDebug = window.gameData.showHitboxes;
+
+            // 플레이어 인스턴스
+            this.player = new Player(this, 150, this.groundY);
+            
+            // 좀비 그룹 및 풀링
+            this.zombieGroup = this.physics.add.group({
+                classType: Zombie,
+                maxSize: 20, // 동시 연산 렉 방지를 위해 화면 최대 20마리 제한
+                runChildUpdate: true
+            });
+
+            // 좀비 스폰 타이머 설정
+            this.spawnTimer = this.time.addEvent({
+                delay: this.currentStageConfig.zombieRate,
+                callback: this.spawnZombieHazard,
+                callbackScope: this,
+                loop: true
+            });
+
+            // 아이템 그룹
+            this.items = this.physics.add.group();
+            this.itemSpawnTimer = this.time.addEvent({
+                delay: 10000, // 10초마다 알약/상자 스폰
+                callback: this.spawnItemBox,
+                callbackScope: this,
+                loop: true
+            });
+
+            // 등 뒤에 쫓아오는 무리(Grouping) 관리용 물리 그룹 및 목록
+            this.hordeGroup = this.physics.add.group();
+            this.hordeZombies = [];
+
+            // 무기 배치 및 히트박스 생성용 키보드 매핑
+            this.cursors = this.input.keyboard.createCursorKeys();
+            this.wasd = this.input.keyboard.addKeys({
+                up: Phaser.Input.Keyboard.KeyCodes.W,
+                down: Phaser.Input.Keyboard.KeyCodes.S,
+                left: Phaser.Input.Keyboard.KeyCodes.A,
+                right: Phaser.Input.Keyboard.KeyCodes.D
+            });
+            this.attackKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+            this.debugKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
+
+            // 충돌/오버랩 처리
+            this.physics.add.overlap(this.player, this.zombieGroup, this.handlePlayerDamage, null, this);
+            this.physics.add.overlap(this.player, this.items, this.handleItemCollect, null, this);
+
+            // BGM 재생 연동 확인
+            if (window.gameData.bgmSelected && window.bgmPlayer.paused) {
+                window.bgmPlayer.play();
+            }
+
+            // 모바일용 양분 스크린 터치 연동
+            this.input.on('pointerdown', (pointer) => {
+                if (pointer.x < 400) {
+                    // 왼쪽 화면 클릭 시 모바일용 버추얼 타겟 지정 이동
+                    this.player.setMobileMoveTarget(pointer.x, pointer.y);
+                } else {
+                    // 오른쪽 화면 클릭 시 공격
+                    this.player.swingBat();
+                }
+            });
+
+            // 모바일 터치 드래그 추적
+            this.input.on('pointermove', (pointer) => {
+                if (pointer.isDown && pointer.x < 400) {
+                    this.player.setMobileMoveTarget(pointer.x, pointer.y);
+                }
+            });
+
+            // 스테이지 진입 텍스트 안내
+            this.showStageBanner(this.currentStageConfig.name);
+            
+            showSubtitle("인간성 게이지가 떨어지지 않도록 알약을 먹고 달려야 합니다.", 3500);
+        }
+
+        update(time, delta) {
+            // 디버그 키 토글 (`D`)
+            if (Phaser.Input.Keyboard.JustDown(this.debugKey)) {
+                const panel = document.getElementById('debug-panel');
+                panel.style.display = (panel.style.display === 'none') ? 'flex' : 'none';
+            }
+
+            const modifiedDelta = delta * window.gameData.timeScale;
+
+            // 시간 업데이트 (음악 파일 유무에 따라 싱크)
+            if (window.gameData.bgmSelected && window.bgmPlayer.src) {
+                window.gameData.elapsedTime = window.bgmPlayer.currentTime;
+            } else {
+                window.gameData.elapsedTime += (modifiedDelta / 1000);
+            }
+
+            // 디버그 슬라이더 값 동기화
+            document.getElementById('humanity-slider').value = window.gameData.currentHumanity;
+            document.getElementById('humanity-slider-val').innerText = Math.round(window.gameData.currentHumanity);
+
+            // HUD 렌더링 갱신
+            this.updateHud();
+
+            // 플레이어 기동
+            this.player.update(modifiedDelta);
+
+            // 무리(Horde) 포메이션 업데이트
+            this.updateHordeFormation(modifiedDelta);
+
+            // 패럴랙스 배경 및 바닥 스크롤 (좌측 주행 표현하기 위해 배경을 우측으로 롤링)
+            const speedMultiplier = this.currentStageConfig.scrollSpeed * window.gameData.timeScale;
+            this.skyBg.tilePositionX -= (0.5 * speedMultiplier);
+            this.ground.tilePositionX -= (3.0 * speedMultiplier);
+
+            // 누적 거리 환산
+            window.gameData.distanceWalked += (0.05 * speedMultiplier);
+
+            // 스테이지 타임라인 기획 모니터링
+            this.checkTimelineStageTransitions();
+
+            // 엔딩 돌입 트리거 검출 (4분 30초 완료)
+            if (window.gameData.elapsedTime >= GAME_CONFIG.epilogueTime) {
+                this.triggerEpilogueSequence();
+            }
+        }
+
+        updateHud() {
+            const min = Math.floor(window.gameData.elapsedTime / 60);
+            const sec = Math.floor(window.gameData.elapsedTime % 60);
+            const padSec = String(sec).padStart(2, '0');
+            
+            const totalMin = Math.floor(GAME_CONFIG.endingTime / 60);
+            const totalSec = Math.floor(GAME_CONFIG.endingTime % 60);
+            const padTotalSec = String(totalSec).padStart(2, '0');
+
+            document.getElementById('time-display').innerText = `${min}:${padSec} / ${totalMin}:${padTotalSec}`;
+            document.getElementById('distance-display').innerText = `${Math.floor(window.gameData.distanceWalked)}m`;
+            
+            // 인간성 바 게이지 반영
+            const humPct = Math.max(0, Math.min(100, window.gameData.currentHumanity));
+            document.getElementById('humanity-text').innerText = `${Math.round(humPct)}%`;
+            document.getElementById('humanity-bar-inner').style.width = `${humPct}%`;
+
+            // 인간성 상태에 따른 바 네온 컬러 퓨징
+            const innerBar = document.getElementById('humanity-bar-inner');
+            if (humPct > 50) {
+                innerBar.style.background = 'linear-gradient(90deg, var(--neon-cyan) 0%, #0077ff 100%)';
+                innerBar.style.boxShadow = '0 0 8px var(--neon-cyan)';
+            } else if (humPct > 25) {
+                innerBar.style.background = 'linear-gradient(90deg, #ffaa00 0%, #cc7700 100%)';
+                innerBar.style.boxShadow = '0 0 8px #ffaa00';
+            } else {
+                innerBar.style.background = 'linear-gradient(90deg, #ff0055 0%, #990022 100%)';
+                innerBar.style.boxShadow = '0 0 8px #ff0055';
+            }
+
+            // 초상화 및 인간성 상태 갱신
+            const portraitBox = document.getElementById('portrait-box');
+            const portraitStatus = document.getElementById('portrait-status');
+            if (portraitBox && portraitStatus) {
+                if (humPct > 50) {
+                    portraitBox.style.backgroundColor = 'var(--neon-cyan)';
+                    portraitBox.style.boxShadow = '0 0 8px var(--neon-cyan)';
+                    portraitStatus.innerText = 'HUMAN';
+                    portraitStatus.style.color = 'var(--neon-cyan)';
+                } else if (humPct > 25) {
+                    portraitBox.style.backgroundColor = '#5cc8a6'; // 민트색 (감염진행)
+                    portraitBox.style.boxShadow = '0 0 8px #5cc8a6';
+                    portraitStatus.innerText = 'INFECTING';
+                    portraitStatus.style.color = '#5cc8a6';
+                } else if (humPct > 0) {
+                    portraitBox.style.backgroundColor = '#2c7a5f'; // 탁한 녹색 (감염완료)
+                    portraitBox.style.boxShadow = '0 0 8px #2c7a5f';
+                    portraitStatus.innerText = 'INFECTED';
+                    portraitStatus.style.color = '#ff3f3f';
+                } else {
+                    portraitBox.style.backgroundColor = '#2ebd59'; // 좀비
+                    portraitBox.style.boxShadow = '0 0 8px #2ebd59';
+                    portraitStatus.innerText = 'ZOMBIE';
+                    portraitStatus.style.color = '#2ebd59';
+                }
+            }
+        }
+
+        // ==========================================
+        // 5. 본 게임 메커니즘 함수들
+        // ==========================================
+        
+        // 좀비 스폰 매커니즘 (플레이어 전방 좌측 화면 밖 / 또는 우측 경고 돌진)
+        spawnZombieHazard() {
+            if (this.zombieGroup.getTotalUsed() >= 20) return; // 오브젝트 풀 한계치 작동
+            
+            const rand = Math.random();
+            const yPos = Phaser.Math.Between(100, this.groundY);
+
+            if (rand < 0.3 && window.gameData.elapsedTime > 20) {
+                // RUNNER 좀비 (우측 알림 경보 후 대시 돌격)
+                this.spawnRunnerZombie(yPos);
+            } else {
+                // NORMAL 좀비 (좌측에서 스폰되어 오른쪽 플레이어를 향해 우향 역추격)
+                // 기획 수정안에 따라 화면 왼쪽(전방) 밖에서 나타나 다가오도록 설정
+                let z = this.zombieGroup.get(-40, yPos, 'zombie_normal');
+                if (z) {
+                    z.activate('NORMAL', 1);
+                }
+            }
+
+            // 스테이지 속도에 맞춰 주기 갱신
+            this.spawnTimer.delay = this.currentStageConfig.zombieRate / window.gameData.timeScale;
+        }
+
+        spawnRunnerZombie(yPos) {
+            // 화면 우측 경고창 (!) 3번 깜빡이기 유도
+            const warnIcon = this.add.text(760, yPos, '!', {
+                fontFamily: 'Press Start 2P',
+                fontSize: '24px',
+                fill: '#ff0055',
+                stroke: '#ffffff',
+                strokeThickness: 3
+            }).setOrigin(0.5);
+
+            this.tweens.add({
+                targets: warnIcon,
+                alpha: 0.1,
+                duration: 250 / window.gameData.timeScale,
+                yoyo: true,
+                repeat: 5,
+                onComplete: () => {
+                    warnIcon.destroy();
+                    // 돌진 좀비 생성
+                    let z = this.zombieGroup.get(840, yPos, 'zombie_runner');
+                    if (z) {
+                        z.activate('RUNNER', 1);
+                    }
+                }
+            });
+        }
+
+        spawnItemBox() {
+            // 알약 혹은 상자 생성
+            const x = Phaser.Math.Between(300, 700);
+            const y = Phaser.Math.Between(150, this.groundY);
+            
+            if (Math.random() < 0.5) {
+                // 상자 (속에 스토커 좀비 탑재)
+                const box = this.items.create(x, y, 'box');
+                box.setDepth(5);
+                box.body.setSize(40, 40);
+                box.isBox = true;
+                box.hp = 2; // 방망이 2타 격파 조건
+            } else {
+                // 알약
+                const pill = this.items.create(x, y, 'pill');
+                pill.setDepth(5);
+                pill.body.setSize(16, 16);
+                pill.isPill = true;
+            }
+        }
+
+        // 방망이 히트박스를 이용한 좀비 타격 판정
+        hitZombiesWithBat(hitbox) {
+            // 활성 좀비들 판정
+            this.zombieGroup.getChildren().forEach(zombie => {
+                if (zombie.active && Phaser.Geom.Intersects.RectangleToRectangle(hitbox, zombie.getBounds())) {
+                    zombie.takeDamage();
+                }
+            });
+
+            // 상자 파괴 판정
+            this.items.getChildren().forEach(item => {
+                if (item.active && item.isBox && Phaser.Geom.Intersects.RectangleToRectangle(hitbox, item.getBounds())) {
+                    item.hp--;
+                    // 파편 튐 효과
+                    this.woodParticleBurst(item.x, item.y);
+                    if (item.hp <= 0) {
+                        this.breakBox(item);
+                    }
+                }
+            });
+        }
+
+        breakBox(box) {
+            box.destroy();
+            showSubtitle("보급 상자 격파! 스토커 좀비 출현!", 1500);
+
+            // 상자 위치에 STALKER 좀비 생성
+            let stalker = this.zombieGroup.get(box.x, box.y, 'zombie_stalker');
+            if (stalker) {
+                stalker.activate('STALKER', 1);
+            }
+        }
+
+        rescueScientist(spawnX, spawnY) {
+            // 연구원 NPC 스폰
+            const npc = this.physics.add.sprite(spawnX, spawnY, 'scientist');
+            npc.setDepth(4);
+            
+            // 구조 느낌표 (!) 생성
+            const icon = this.add.text(spawnX, spawnY - 30, '!', {
+                fontFamily: 'Orbitron',
+                fontSize: '18px',
+                fill: '#00d2fc',
+                stroke: '#000000',
+                strokeThickness: 2
+            }).setOrigin(0.5);
+
+            window.gameData.isScientistRescued = true;
+            document.getElementById('rescued-card').style.display = 'flex';
+            document.getElementById('rescued-status').innerText = 'RESCUED';
+            document.getElementById('rescued-status').style.color = 'var(--neon-cyan)';
+            document.getElementById('btn-rescue').innerText = "시민구출: YES";
+
+            showSubtitle("연구원 구출 성공! 탈출선 조력 대기.", 3000);
+
+            // 우측 방향으로 탈출해 밀려나는 연출
+            this.tweens.add({
+                targets: [npc, icon],
+                x: '+=300',
+                alpha: 0,
+                duration: 2500 / window.gameData.timeScale,
+                onComplete: () => {
+                    npc.destroy();
+                    icon.destroy();
+                }
+            });
+        }
+
+        woodParticleBurst(x, y) {
+            const emitter = this.add.particles(x, y, 'particle_wood', {
+                speed: { min: -100, max: 100 },
+                angle: { min: 0, max: 360 },
+                scale: { start: 1, end: 0 },
+                blendMode: 'NORMAL',
+                lifespan: 600,
+                gravityY: 300,
+                maxParticles: 8
+            });
+            emitter.setDepth(10);
+        }
+
+        // 좀비 격파 후 군단에 추가
+        addZombiesToHorde(count) {
+            for (let i = 0; i < count; i++) {
+                // 우측 좀비 군단 영역에 사각형 좀비 인스턴스 렌더링
+                const rx = Phaser.Math.Between(580, 780);
+                const ry = Phaser.Math.Between(150, this.groundY);
+                const hz = this.physics.add.sprite(rx, ry, 'zombie_normal');
+                hz.setDepth(3);
+                
+                // 스케일 오르내림 등으로 흔들리는 효과
+                this.physics.add.overlap(this.player, hz, () => {}, null, this);
+                this.hordeZombies.push(hz);
+            }
+        }
+
+        updateHordeFormation(delta) {
+            const time = this.time.now;
+            // 무리의 뒤따름 흔들림 포메이션 구현 (우측 1/3 지역 포지셔닝 타겟 바인딩)
+            this.hordeZombies.forEach((hz, idx) => {
+                // 흔들림 주기 파장 계산
+                const bobOffset = Math.sin(time * 0.003 + idx * 0.2) * 8;
+                const waveOffset = Math.cos(time * 0.002 + idx * 0.1) * 12;
+
+                // 타겟 바인딩 포지션 (오른쪽에 자연스럽게 뭉치도록 유도)
+                const col = idx % 4;
+                const row = Math.floor(idx / 4);
+                
+                const targetX = 640 + col * 32 + waveOffset;
+                const targetY = 180 + row * 18 + bobOffset;
+
+                // 부드러운 선형 보간 이동 (LERP)
+                hz.x = Phaser.Math.Linear(hz.x, targetX, 0.05 * window.gameData.timeScale);
+                hz.y = Phaser.Math.Linear(hz.y, Math.min(this.groundY, targetY), 0.05 * window.gameData.timeScale);
+            });
+        }
+
+        // ==========================================
+        // 6. 충돌 및 이벤트 가위바위보 판정
+        // ==========================================
+        handlePlayerDamage(player, zombie) {
+            // 마지막 스테이지(공사장, 180초 이상)에서는 좀비 상태이며 무적이므로 충돌 피해 없음
+            if (window.gameData.elapsedTime >= 180) return;
+
+            if (!zombie.active || player.isInvincible) return;
+
+            // 돌진 좀비 대시 회피 유도 등
+            window.gameData.currentHumanity -= GAME_CONFIG.humanityLossOnHit;
+            
+            // 데미지 사운드 폴백 비프음
+            this.playPulseSound(120, 0.15);
+
+            // 무적 점멸 가동
+            player.triggerInvincibility();
+
+            // 좀비에 맞으면 콤보가 리셋되지 않고 좀비 무리에서 3마리씩 감염 도망쳐 삭제 (어그로 감소 패널티)
+            const penalty = Math.min(3, this.hordeZombies.length);
+            for(let i=0; i<penalty; i++) {
+                let hz = this.hordeZombies.pop();
+                if (hz) hz.destroy();
+            }
+            window.gameData.totalEscortedCount = this.hordeZombies.length;
+            
+            // 피격 바운스백
+            player.x += 35; // 우측(뒤쪽)으로 밀림
+            
+            showSubtitle(`좀비 습격 피격! 인간성 감소! 군단 어그로 이탈.`, 1500);
+
+            // 0 도달 시 감염 데드엔딩 (Player FSM에서도 체크하지만 이중 보장)
+            if (window.gameData.currentHumanity <= 0) {
+                this.triggerGameOverInfection();
+            }
+        }
+
+        handleItemCollect(player, item) {
+            if (item.isPill) {
+                // 알약 획득
+                item.destroy();
+                addPillCount(1);
+                window.gameData.currentHumanity = Math.min(GAME_CONFIG.maxHumanity, window.gameData.currentHumanity + GAME_CONFIG.humanityRestorePill);
+                this.playPulseSound(440, 0.08); // 청량한 피치톤
+                showSubtitle("인간성 알약 흡수! 정신력 회복 (+20)", 1500);
+            }
+        }
+
+        // ==========================================
+        // 7. 스테이지 전환 연출
+        // ==========================================
+        checkTimelineStageTransitions() {
+            if (this.stageIndex >= GAME_CONFIG.stages.length - 1) return;
+
+            const nextStageConfig = GAME_CONFIG.stages[this.stageIndex + 1];
+            if (window.gameData.elapsedTime >= nextStageConfig.time) {
+                this.stageIndex++;
+                this.transitionToNextStage(nextStageConfig);
+            }
+        }
+
+        transitionToNextStage(config) {
+            this.currentStageConfig = config;
+            
+            // 화면 1초간 페이드 아웃 연출
+            this.cameras.main.fadeOut(800, 0, 0, 0);
+            this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+                
+                // 배경 변경
+                this.updateBackgroundTexture();
+                this.updateGroundTexture();
+
+                // 적 스폰 주기 변경
+                this.spawnTimer.delay = config.zombieRate / window.gameData.timeScale;
+
+                this.cameras.main.fadeIn(800, 0, 0, 0);
+                this.showStageBanner(config.name);
+                
+                showSubtitle(`스테이지 돌입: ${config.name}`, 3000);
+            });
+        }
+
+        updateBackgroundTexture() {
+            let colorHex = GAME_CONFIG.stages[this.stageIndex].bgColor;
+            
+            // 동적 그라데이션 빌드 대신 타일 픽셀 드로잉 채색
+            let key = `bg_stage_${this.stageIndex}`;
+            if (!this.textures.exists(key)) {
+                let canvas = this.textures.createCanvas(key, 32, 32);
+                let ctx = canvas.context;
+                ctx.fillStyle = this.stageColorToCss(colorHex);
+                ctx.fillRect(0, 0, 32, 32);
+                
+                // 노을/건물 간이 표현용 미세 패널선
+                ctx.fillStyle = 'rgba(255,255,255,0.06)';
+                ctx.fillRect(0, 24, 32, 8);
+                canvas.refresh();
+            }
+            this.skyBg.setTexture(key);
+        }
+
+        updateGroundTexture() {
+            let key = `ground_stage_${this.stageIndex}`;
+            if (!this.textures.exists(key)) {
+                let canvas = this.textures.createCanvas(key, 32, 32);
+                let ctx = canvas.context;
+                
+                // 테마에 맞는 바닥색 채우기
+                if (this.stageIndex === 0) ctx.fillStyle = '#8d6e63'; // 저녁 길 흙벽돌 색
+                else if (this.stageIndex === 1) ctx.fillStyle = '#455a64'; // 폐허 아스팔트
+                else ctx.fillStyle = '#37474f'; // 공사장 골조 철판색
+                
+                ctx.fillRect(0, 0, 32, 32);
+                ctx.fillStyle = 'rgba(0,0,0,0.15)';
+                ctx.fillRect(0, 0, 32, 4); // 깊이감 디바이드선
+                canvas.refresh();
+            }
+            this.ground.setTexture(key);
+        }
+
+        stageColorToCss(hex) {
+            return '#' + String(hex.toString(16)).padStart(6, '0');
+        }
+
+        showStageBanner(name) {
+            const banner = this.add.text(400, 160, name, {
+                fontFamily: 'Orbitron',
+                fontSize: '24px',
+                fontWeight: 'bold',
+                fill: '#ffffff',
+                stroke: '#000000',
+                strokeThickness: 4
+            }).setOrigin(0.5).setDepth(20).setAlpha(0);
+
+            this.tweens.add({
+                targets: banner,
+                alpha: 1,
+                y: 120,
+                duration: 600 / window.gameData.timeScale,
+                yoyo: true,
+                hold: 1500 / window.gameData.timeScale,
+                onComplete: () => {
+                    banner.destroy();
+                }
+            });
+            
+            document.getElementById('stage-name-display').innerText = name.split(' ')[0];
+        }
+
+        // ==========================================
+        // 8. 조작 박탈 및 엔딩 돌입 제어
+        // ==========================================
+        triggerGameOverInfection() {
+            if (this.isGameOver) return;
+            this.isGameOver = true;
+
+            // 플레이 도중 인간성 0: 좀비 감염 패배 연출 (쓰러짐 + 좀비 떼 덮침)
+            this.physics.pause();
+            
+            // 플레이어 쓰러짐 연출 (-90도 꺾여 눕는 형태)
+            this.player.angle = -90;
+            this.player.setTexture('player_infected');
+            
+            // 주위 좀비들이 덮치는 비주얼 연출
+            for (let i = 0; i < 8; i++) {
+                const rx = this.player.x + Phaser.Math.Between(-30, 30);
+                const ry = this.player.y + Phaser.Math.Between(-30, 30);
+                const swarmZombie = this.add.sprite(rx, ry, 'zombie_normal');
+                swarmZombie.setDepth(12); // 플레이어보다 위에 렌더링
+                swarmZombie.angle = Phaser.Math.Between(-45, 45);
+                
+                this.tweens.add({
+                    targets: swarmZombie,
+                    scale: 1.1,
+                    x: this.player.x + Phaser.Math.Between(-8, 8),
+                    y: this.player.y + Phaser.Math.Between(-8, 8),
+                    duration: 300 / window.gameData.timeScale,
+                    ease: 'Bounce.easeOut'
+                });
+            }
+
+            stopSynthBeat();
+            if (window.bgmPlayer) window.bgmPlayer.pause();
+
+            showSubtitle("그녀는 쓰러졌고, 무자비한 좀비 떼가 그녀를 덮쳐왔다...", 4000);
+
+            this.time.delayedCall(3000 / window.gameData.timeScale, () => {
+                this.cameras.main.fadeOut(1500, 0, 0, 0);
+                this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+                    // HUD 오프
+                    document.getElementById('hud-overlay').style.display = 'none';
+                    
+                    // 게임오버 화면 출력
+                    this.add.text(400, 150, '[ BAD ENDING: 좀비화 감염 ]', {
+                        fontFamily: 'Noto Sans KR', fontSize: '24px', fill: '#ff0055', fontWeight: 'bold'
+                    }).setOrigin(0.5);
+
+                    this.add.text(400, 210, `생존 거리: ${Math.floor(window.gameData.distanceWalked)}m`, {
+                        fontFamily: 'Noto Sans KR', fontSize: '14px', fill: '#ffffff'
+                    }).setOrigin(0.5);
+
+                    // 재도전 버튼
+                    const restartBtn = this.add.rectangle(400, 280, 160, 40, 0x333333).setInteractive({ useHandCursor: true });
+                    this.add.text(400, 280, '다시 시작', { fontFamily: 'Noto Sans KR', fontSize: '14px', fill: '#fff' }).setOrigin(0.5);
+                    restartBtn.on('pointerdown', () => {
+                        window.location.reload();
+                    });
+                });
+            });
+        }
+
+        triggerEpilogueSequence() {
+            // 에필로그 270초 생존 도달: 페이드아웃 후 절벽 에필로그 연출 씬 시작
+            this.scene.stop('PlayScene');
+            this.scene.start('EndingScene');
+        }
+
+        syncTimeToStage(seconds) {
+            // 디버그용 시간 이동 시 배경 및 인덱스 동기화 맞춤
+            if (seconds >= GAME_CONFIG.stages[2].time) {
+                this.stageIndex = 2;
+            } else if (seconds >= GAME_CONFIG.stages[1].time) {
+                this.stageIndex = 1;
+            } else {
+                this.stageIndex = 0;
+            }
+            this.currentStageConfig = GAME_CONFIG.stages[this.stageIndex];
+            this.updateBackgroundTexture();
+            this.updateGroundTexture();
+        }
+
+        playPulseSound(freq, dur) {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContext) return;
+            const ctx = new AudioContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.1, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur - 0.02);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + dur);
+        }
+    }
+
+    // ==========================================
+    // 9. ENDING SCENE: 절벽 에필로그 걷기 및 최종 분기
+    // ==========================================
+    class EndingScene extends Phaser.Scene {
+        constructor() {
+            super('EndingScene');
+            this.cutsceneActive = true;
+            this.endingTriggered = false;
+        }
+
+        create() {
+            this.cutsceneActive = true;
+            this.endingTriggered = false;
+            
+            // BGM 아웃로 테마 연출 싱크 확인
+            if (window.bgmPlayer && window.gameData.bgmSelected) {
+                window.bgmPlayer.currentTime = GAME_CONFIG.epilogueTime;
+            }
+
+            // HUD 갱신용 활성 오버레이 (시간 고정)
+            document.getElementById('hud-overlay').style.display = 'block';
+            document.getElementById('stage-name-display').innerText = "공사장 절벽";
+
+            this.cameras.main.fadeIn(1000, 0, 0, 0);
+            this.cameras.main.setBackgroundColor('#111625');
+
+            // 물리 기저 생성 (절벽과 Excavator 배치)
+            this.groundY = 320;
+            
+            // X: 0 ~ X: 350 구간만 땅을 그리고, 좌측 절벽 낭떠러지 형성
+            // EX2 스크린샷과 일치: 좌측 절벽 낭떠러지, 지면은 오른쪽에 뻗음
+            // 따라서 벼랑은 X: 250 지점쯤에 떨어지게 구현 (250 이하는 낭떠러지 공중)
+            this.cliffEdgeX = 220;
+            
+            this.cliffBase = this.add.rectangle(this.cliffEdgeX + 290, this.groundY + 40, 580, 80, 0x5d4037).setOrigin(0.5);
+            // 깎아내린 절벽 단면
+            this.cliffWall = this.add.rectangle(this.cliffEdgeX, 360, 4, 80, 0x3d2723);
+
+            // 우측 포크레인(Excavator) 사각형 데코레이션 탑재 (EX2 스크린샷 굴착기 위치 매칭)
+            this.createExcavatorDeco(620, this.groundY - 12);
+
+            // 주인공 생성 (감염 진행된 상태인 player_infected 색상 적용)
+            this.player = this.physics.add.sprite(750, this.groundY - 16, 'player_infected');
+            this.player.setDepth(10);
+            
+            // 터덜터덜 절벽으로 21초 동안 자동 전진 (LERP 및 강제 애니메이션 효과)
+            // 좌향 주행이므로 X: 750 -> X: 240 (절벽 끝) 지점까지 21초간 이동
+            this.tweens.add({
+                targets: this.player,
+                x: this.cliffEdgeX + 25,
+                duration: 21000 / window.gameData.timeScale,
+                ease: 'Linear'
+            });
+
+            // 좀비 무리들이 플레이어 바로 뒤로 조여오며 줄지어 따라오기 연출 (EX2 스크린샷 매칭)
+            this.zombies = [];
+            const zombieCount = Math.max(12, Math.min(30, window.gameData.totalEscortedCount));
+            for (let i = 0; i < zombieCount; i++) {
+                let rx = 800 + i * 20 + Phaser.Math.Between(-10, 10);
+                let ry = this.groundY - 16 + Phaser.Math.Between(-12, 12);
+                let z = this.physics.add.sprite(rx, ry, 'zombie_normal');
+                z.setDepth(5);
+                this.zombies.push(z);
+                
+                // 플레이어 뒤쪽 일정 갭(x + 50)을 유지하며 추적
+                this.tweens.add({
+                    targets: z,
+                    x: {
+                        getEnd: (target, key, value) => {
+                            return this.cliffEdgeX + 70 + (i * 12);
+                        }
+                    },
+                    duration: 21000 / window.gameData.timeScale,
+                    ease: 'Linear'
+                });
+            }
+
+            showSubtitle("4분 30초: 마침내 막다른 절벽에 도달했다. (자동 이동 연출)", 5000);
+        }
+
+        createExcavatorDeco(x, y) {
+            // 사각형 블록 조립형 포크레인 (EX2 이미지와 최대한 흡사한 실루엣 연출)
+            const mainBody = this.add.rectangle(x, y, 64, 32, 0xe5a93b).setDepth(4); // 바디 노란색
+            const track = this.add.rectangle(x, y + 16, 72, 10, 0x333333).setDepth(5); // 궤도 검정
+            const cab = this.add.rectangle(x - 16, y - 24, 24, 20, 0x222222).setDepth(4); // 운전석 검정
+            const arm1 = this.add.rectangle(x + 24, y - 16, 8, 32, 0xe5a93b).setDepth(3); // 붐대 1
+            arm1.angle = -35;
+            const arm2 = this.add.rectangle(x + 40, y - 36, 6, 24, 0xe5a93b).setDepth(3); // 붐대 2
+            arm2.angle = 45;
+        }
+
+        update(time, delta) {
+            const modifiedDelta = delta * window.gameData.timeScale;
+            
+            if (window.gameData.bgmSelected && window.bgmPlayer.src) {
+                window.gameData.elapsedTime = window.bgmPlayer.currentTime;
+            } else {
+                window.gameData.elapsedTime += (modifiedDelta / 1000);
+            }
+
+            // HUD 오버레이 시간 고정 리프레시
+            const min = Math.floor(window.gameData.elapsedTime / 60);
+            const sec = Math.floor(window.gameData.elapsedTime % 60);
+            const padSec = String(sec).padStart(2, '0');
+            document.getElementById('time-display').innerText = `${min}:${padSec} / 04:51`;
+
+            // 매 프레임 캐릭터 걸어가는 듯한 상하 바운싱 모션 강제 주입
+            if (this.cutsceneActive) {
+                this.player.y = (this.groundY - 16) + Math.sin(this.time.now * 0.008) * 3;
+                this.zombies.forEach((z, idx) => {
+                    z.y = (this.groundY - 16) + Math.sin(this.time.now * 0.006 + idx) * 3;
+                });
+            }
+
+            // 291초 정각 도달 시 엔딩 결정 분기 실행
+            if (window.gameData.elapsedTime >= GAME_CONFIG.endingTime && !this.endingTriggered) {
+                this.endingTriggered = true;
+                this.cutsceneActive = false;
+                this.triggerEndingBranch();
+            }
+        }
+
+        triggerEndingBranch() {
+            // 미션 정보 출력 확인
+            const isTrue = (
+                window.gameData.pillsCollected >= GAME_CONFIG.minPillsForTrueEnding &&
+                window.gameData.isScientistRescued === true &&
+                window.gameData.maxZombieCombo >= GAME_CONFIG.minComboForTrueEnding
+            );
+
+            this.cameras.main.fadeOut(1000, 0, 0, 0);
+            this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+                if (isTrue) {
+                    this.playTrueEnding();
+                } else {
+                    this.playNormalEnding();
+                }
+            });
+        }
+
+        // ==========================================
+        // 10. 엔딩 분기 세부 연출 (성공 vs 실패)
+        // ==========================================
+        
+        // 10-1. 일반 엔딩 (Normal Ending): 동귀어진 낙하
+        playNormalEnding() {
+            // 비디오 가용한지 확인
+            if (!window.gameData.useEndingNormalFallback) {
+                this.runNormalEndingVideo();
+            } else {
+                this.runNormalEndingFallback();
+            }
+        }
+
+        runNormalEndingVideo() {
+            try {
+                this.cameras.main.fadeIn(500, 0, 0, 0);
+                let vid = this.add.video(400, 200, 'ending_norm_vid');
+                vid.setDisplaySize(800, 400);
+                vid.play();
+                
+                vid.on('complete', () => {
+                    this.showCreditsScreen(false);
+                });
+                
+                vid.on('error', () => {
+                    this.runNormalEndingFallback();
+                });
+            } catch(e) {
+                this.runNormalEndingFallback();
+            }
+        }
+
+        runNormalEndingFallback() {
+            this.cameras.main.fadeIn(1000, 0, 0, 0);
+            showSubtitle("씁쓸한 희생: 그녀는 자신을 따르던 무리들을 이끌고 절벽 밑으로 걸어갔다.", 5000);
+
+            // 중력 활성화하여 절벽 밑 낙하 연출 구현
+            this.physics.world.setGravityY(400);
+            
+            // 플레이어 낙하
+            this.player.body.setGravityY(400);
+            this.player.setVelocityX(-40); // 절벽 왼쪽 아래로 밀림
+            
+            // 순차적 좀비 낙하
+            this.zombies.forEach((z, idx) => {
+                this.time.delayedCall(idx * 150 / window.gameData.timeScale, () => {
+                    if (z && z.body) {
+                        z.body.setGravityY(400);
+                        z.setVelocityX(-50 - Math.random() * 30);
+                    }
+                });
+            });
+
+            // 화면 흔들림 효과
+            this.cameras.main.shake(2000, 0.005);
+
+            this.time.delayedCall(6000 / window.gameData.timeScale, () => {
+                this.showCreditsScreen(false);
+            });
+        }
+
+        // 10-2. 진 엔딩 (True Ending): 헬리콥터 극적 구출
+        playTrueEnding() {
+            if (!window.gameData.useEndingTrueFallback) {
+                this.runTrueEndingVideo();
+            } else {
+                this.runTrueEndingFallback();
+            }
+        }
+
+        runTrueEndingVideo() {
+            try {
+                this.cameras.main.fadeIn(500, 0, 0, 0);
+                let vid = this.add.video(400, 200, 'ending_true_vid');
+                vid.setDisplaySize(800, 400);
+                vid.play();
+                
+                vid.on('complete', () => {
+                    this.showCreditsScreen(true);
+                });
+
+                vid.on('error', () => {
+                    this.runTrueEndingFallback();
+                });
+            } catch(e) {
+                this.runTrueEndingFallback();
+            }
+        }
+
+        runTrueEndingFallback() {
+            this.cameras.main.fadeIn(1000, 0, 0, 0);
+            showSubtitle("백신 확보, 시민 구출, 군단 유인 완료. 구조 신호 접수!", 4000);
+
+            // 좌측 상공(X: 100, Y: -100)에서 구조 헬기 출현 연출
+            const heli = this.physics.add.sprite(-100, 80, 'helicopter');
+            heli.setDepth(15);
+            
+            // 헬기 프로펠러 모사용 간이 흔들림 회전
+            this.tweens.add({
+                targets: heli,
+                angle: { from: -2, to: 2 },
+                duration: 50,
+                yoyo: true,
+                repeat: -1
+            });
+
+            // 헬기 화면 중심으로 비행 진입
+            this.tweens.add({
+                targets: heli,
+                x: this.cliffEdgeX + 25,
+                y: 120,
+                duration: 4000 / window.gameData.timeScale,
+                ease: 'Quad.easeOut',
+                onComplete: () => {
+                    // 구출 밧줄 하강선 렌더링
+                    const rope = this.add.line(0, 0, this.cliffEdgeX + 25, 120, this.cliffEdgeX + 25, 300, 0xffffff).setOrigin(0).setLineWidth(2);
+
+                    showSubtitle("극적 구출: 헬기가 하강시킨 사다리에 탑승했다!", 4000);
+                    
+                    // 플레이어 끌어올리기 연출
+                    this.tweens.add({
+                        targets: this.player,
+                        x: this.cliffEdgeX + 25,
+                        y: 140,
+                        duration: 3000 / window.gameData.timeScale,
+                        ease: 'Power1',
+                        onComplete: () => {
+                            rope.destroy();
+                            
+                            // 백신 핑크색 파티클 샤워 연출
+                            this.vaccineParticleShower(this.cliffEdgeX + 25, 140);
+                            
+                            // 헬기 탈출 비행
+                            this.tweens.add({
+                                targets: [heli, this.player],
+                                x: 900,
+                                y: -100,
+                                duration: 4000 / window.gameData.timeScale,
+                                ease: 'Quad.easeIn',
+                                onComplete: () => {
+                                    showSubtitle("구조 완료. 좀비 바이러스 백신 투여 성공.", 3000);
+                                }
+                            });
+                        }
+                    });
+
+                    // 아래 대기 좀비들이 뛰어오르려다 절벽으로 차례로 고꾸라져 낙하
+                    this.zombies.forEach((z, idx) => {
+                        this.time.delayedCall(idx * 200 / window.gameData.timeScale, () => {
+                            if (z && z.body) {
+                                z.body.setGravityY(400);
+                                z.setVelocityX(-40 - Math.random() * 20);
+                                z.setVelocityY(-100); // 절벽 아래로 점프 낙하 느낌
+                            }
+                        });
+                    });
+                }
+            });
+
+            this.time.delayedCall(12000 / window.gameData.timeScale, () => {
+                this.showCreditsScreen(true);
+            });
+        }
+
+        vaccineParticleShower(x, y) {
+            const emitter = this.add.particles(x, y, 'particle_vaccine', {
+                speed: { min: -150, max: 150 },
+                angle: { min: 0, max: 360 },
+                scale: { start: 1.5, end: 0 },
+                blendMode: 'ADD',
+                lifespan: 1000,
+                gravityY: 100,
+                maxParticles: 40
+            });
+            emitter.setDepth(20);
+        }
+
+        // 10-3. 스태프롤 / 최종 통계 보드
+        showCreditsScreen(isTrue) {
+            this.cameras.main.fadeOut(800, 0, 0, 0);
+            this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+                document.getElementById('hud-overlay').style.display = 'none';
+                stopSynthBeat();
+                
+                this.cameras.main.fadeIn(1000, 0, 0, 0);
+                this.cameras.main.setBackgroundColor('#000000');
+
+                // 엔딩 명칭
+                const endingTitle = this.add.text(400, 80, isTrue ? "[ TRUE ENDING: 인류의 여명 ]" : "[ NORMAL ENDING: 희생의 메아리 ]", {
+                    fontFamily: 'Noto Sans KR',
+                    fontSize: '22px',
+                    fontWeight: 'bold',
+                    fill: isTrue ? 'var(--neon-cyan)' : 'var(--neon-pink)'
+                }).setOrigin(0.5);
+
+                // 반짝임
+                this.tweens.add({ targets: endingTitle, alpha: 0.5, duration: 1000, yoyo: true, repeat: -1 });
+
+                // 미션 수행 통계 리포트 보드
+                const boardY = 190;
+                this.add.text(400, boardY - 40, "=== MISSION DATA REPORT ===", { fontFamily: 'Orbitron', fontSize: '12px', fill: '#8892b0' }).setOrigin(0.5);
+                this.add.text(280, boardY, `알약 획득 수: ${window.gameData.pillsCollected}개 (성공 조건: ${GAME_CONFIG.minPillsForTrueEnding}개)`, { fontFamily: 'Noto Sans KR', fontSize: '13px', fill: '#fff' }).setOrigin(0);
+                this.add.text(280, boardY + 24, `연구원 구출 여부: ${window.gameData.isScientistRescued ? "성공 (YES)" : "실패 (NO)"}`, { fontFamily: 'Noto Sans KR', fontSize: '13px', fill: '#fff' }).setOrigin(0);
+                this.add.text(280, boardY + 48, `최대 좀비 콤보 수: ${window.gameData.maxZombieCombo}마리 (성공 조건: ${GAME_CONFIG.minComboForTrueEnding}마리)`, { fontFamily: 'Noto Sans KR', fontSize: '13px', fill: '#fff' }).setOrigin(0);
+
+                // 크레딧 스태프롤
+                const credits = this.add.text(400, 310, "Director: User | Framework: Phaser 3 | AI Partner: Antigravity", {
+                    fontFamily: 'Orbitron', fontSize: '10px', fill: '#4a5568'
+                }).setOrigin(0.5);
+
+                // 재시작 버튼
+                const restartBtn = this.add.rectangle(400, 360, 150, 35, isTrue ? 0x00d2fc : 0xff007f).setInteractive({ useHandCursor: true });
+                const restartText = this.add.text(400, 360, "메인 화면으로", { fontFamily: 'Noto Sans KR', fontSize: '12px', fill: '#000', fontWeight: 'bold' }).setOrigin(0.5);
+                
+                restartBtn.on('pointerdown', () => {
+                    if (window.bgmPlayer) {
+                        window.bgmPlayer.pause();
+                        window.bgmPlayer.currentTime = 0;
+                    }
+                    window.location.reload();
+                });
+            });
+        }
+
+        jumpTime(targetSec) {
+            // 에필로그 시간 가속 제어
+            this.endingTriggered = false;
+        }
+    }
+
+    // ==========================================
+    // 11. 엔티티 클래스 구현 (Player, Zombie)
+    // ==========================================
+    
+    // 11-1. 플레이어 클래스
+    class Player extends Phaser.GameObjects.Sprite {
+        constructor(scene, x, y) {
+            super(scene, x, y, 'player_normal');
+            scene.add.existing(this);
+            scene.physics.add.existing(this);
+            
+            this.scene = scene;
+            this.setDepth(10);
+            this.body.setCollideWorldBounds(true);
+            this.body.setSize(24, 32); // 충돌체 실보정
+
+            // 상태 속성
+            this.isInvincible = false;
+            this.isAttacking = false;
+            this.attackCooldown = false;
+            this.mobileTarget = null;
+            this.originalScale = 1;
+            
+            // 방망이 무기 스프라이트 부착 (공격 시 스윙 가시화)
+            this.weapon = scene.add.sprite(x - 20, y, 'weapon_bat');
+            this.weapon.setOrigin(0.8, 0.5);
+            this.weapon.setDepth(11);
+            this.weapon.setVisible(false);
+            
+            // 기본 방향 설정 (좌향)
+            this.setFlipX(false); // 좌향이 기본 텍스처이므로 false
+        }
+
+        update(delta) {
+            // 게임오버 시 조작 차단
+            if (window.gameData.currentHumanity <= 0) return;
+
+            // 1. 인간성 상태 변화에 따른 FSM 텍스처 실시간 스왑
+            this.updateHumanity(delta);
+
+            // 2. 키보드 움직임 제어
+            let vx = 0;
+            let vy = 0;
+            const speed = 180;
+
+            if (this.scene.cursors.left.isDown || this.scene.wasd.left.isDown) {
+                vx = -speed;
+            } else if (this.scene.cursors.right.isDown || this.scene.wasd.right.isDown) {
+                vx = speed;
+            }
+
+            if (this.scene.cursors.up.isDown || this.scene.wasd.up.isDown) {
+                vy = -speed;
+            } else if (this.scene.cursors.down.isDown || this.scene.wasd.down.isDown) {
+                vy = speed;
+            }
+
+            // 모바일 터치 드래그로 타겟 좌표가 들어왔을 시의 이동 보간
+            if (this.mobileTarget) {
+                const dist = Phaser.Math.Distance.Between(this.x, this.y, this.mobileTarget.x, this.mobileTarget.y);
+                if (dist > 8) {
+                    const angle = Phaser.Math.Angle.Between(this.x, this.y, this.mobileTarget.x, this.mobileTarget.y);
+                    vx = Math.cos(angle) * speed;
+                    vy = Math.sin(angle) * speed;
+                } else {
+                    this.mobileTarget = null;
+                }
+            }
+
+            // 스케일 속도 보정
+            this.body.setVelocity(vx * window.gameData.timeScale, vy * window.gameData.timeScale);
+
+            // 플레이 구역 범위 가두기 조항 (좌측 2/3 영역인 x: 30 ~ x: 530)
+            if (this.x < 30) this.x = 30;
+            if (this.x > 530) this.x = 530;
+
+            // 3. 공격 감지 (Spacebar)
+            if (Phaser.Input.Keyboard.JustDown(this.scene.attackKey)) {
+                this.swingBat();
+            }
+
+            // 무기 배치 동기화 (주인공 몸체 좌측에 배치 - 좌향 공격)
+            this.weapon.x = this.x - 12;
+            this.weapon.y = this.y + 4;
+            
+            // 걸어가는 가벼운 틱 진동 효과 (애니메이션 폴백)
+            if (vx !== 0 || vy !== 0) {
+                this.y += Math.sin(this.scene.time.now * 0.015) * 0.4;
+            }
+        }
+
+        updateHumanity(delta) {
+            // 초당 자연 감소율 적용
+            if (delta > 0) {
+                window.gameData.currentHumanity -= (GAME_CONFIG.humanityLossPerSec * (delta / 1000));
+            }
+
+            const hum = window.gameData.currentHumanity;
+            const isStage3 = (window.gameData.elapsedTime >= 180);
+
+            if (isStage3 || hum <= 0) {
+                this.setTexture('player_infected'); // 좀비 모드 스프라이트 사용
+            } else {
+                this.setTexture('player_normal'); // 인간 모드 스프라이트 사용
+            }
+
+            // Stage 1 & 2에서 인간성이 0 이하가 되면 즉시 게임오버 트리거
+            if (!isStage3 && hum <= 0 && this.scene.isGameOver === false) {
+                this.scene.triggerGameOverInfection();
+            }
+        }
+
+        swingBat() {
+            if (this.isAttacking || this.attackCooldown) return;
+            
+            this.isAttacking = true;
+            this.attackCooldown = true;
+            this.weapon.setVisible(true);
+            this.weapon.angle = 90; // 휘두르기 시작 각도
+
+            // 좌향 스윙 궤적 물리 히트박스 생성 (x좌표 좌측 배치)
+            const attackHitbox = new Phaser.Geom.Rectangle(this.x - 65, this.y - 20, 60, 40);
+
+            // 스윙 물리 효과 그리기 디버그용 사각형 임시 플래시
+            let swingFlash = null;
+            if (window.gameData.showHitboxes) {
+                swingFlash = this.scene.add.rectangle(this.x - 35, this.y, 60, 40, 0x00ffff, 0.4);
+            }
+
+            // 방망이 회전 트위너
+            this.scene.tweens.add({
+                targets: this.weapon,
+                angle: -90,
+                duration: 150 / window.gameData.timeScale,
+                onComplete: () => {
+                    this.weapon.setVisible(false);
+                    this.isAttacking = false;
+                    if (swingFlash) swingFlash.destroy();
+                }
+            });
+
+            // 몬스터 데미지 타격 체킹
+            this.scene.hitZombiesWithBat(attackHitbox);
+
+            // 공격 쿨타임 복구
+            this.scene.time.delayedCall(GAME_CONFIG.attackCooldown / window.gameData.timeScale, () => {
+                this.attackCooldown = false;
+            });
+        }
+
+        triggerInvincibility() {
+            this.isInvincible = true;
+            
+            // 점멸 깜빡임 이펙트
+            this.scene.tweens.add({
+                targets: this,
+                alpha: 0.2,
+                duration: 100,
+                yoyo: true,
+                repeat: 5,
+                onComplete: () => {
+                    this.alpha = 1.0;
+                    this.isInvincible = false;
+                }
+            });
+        }
+
+        setMobileMoveTarget(x, y) {
+            this.mobileTarget = { x, y };
+        }
+
+        dieInfection() {
+            // 좀비 감염 시 Cyan -> 완전 잿빛 녹색 텍스처 박제
+            this.setTexture('zombie_normal');
+            this.body.setVelocity(0, 0);
+        }
+    }
+
+    // 11-2. 좀비 클래스 (오브젝트 풀링 연동 설계)
+    class Zombie extends Phaser.GameObjects.Sprite {
+        constructor(scene, x, y) {
+            super(scene, x, y, 'zombie_normal');
+            scene.physics.add.existing(this);
+            this.body.setCollideWorldBounds(false);
+            
+            // 초기 비활성
+            this.active = false;
+            this.visible = false;
+            this.zombieType = 'NORMAL';
+            this.hp = 1;
+            this.speed = 50;
+            this.currentState = 'CHASING'; // CHASING, KNOCKBACK, DEAD_FLY
+            this.knockbackTimer = 0;
+            this.deathRotationSpeed = 8;
+        }
+
+        activate(type, hp) {
+            this.zombieType = type;
+            this.hp = hp;
+            this.currentState = 'CHASING';
+            this.angle = 0;
+            this.alpha = 1.0;
+            
+            this.setActive(true);
+            this.setVisible(true);
+
+            if (type === 'NORMAL') {
+                this.setTexture('zombie_normal');
+                this.speed = 50 + Math.random() * 20;
+            } else if (type === 'RUNNER') {
+                this.setTexture('zombie_runner');
+                this.speed = 300; // 대시 폭격
+            } else if (type === 'STALKER') {
+                this.setTexture('zombie_stalker');
+                this.speed = 40;
+            }
+        }
+
+        update(time, delta) {
+            if (!this.active) return;
+            const modifiedDelta = delta * window.gameData.timeScale;
+
+            if (this.currentState === 'CHASING') {
+                // 플레이어를 쫓는 AI 알고리즘
+                const player = this.scene.player;
+                
+                let vx = 0;
+                let vy = 0;
+
+                // NORMAL은 좌측 스폰하여 우측에 있는 플레이어를 향해 쫓아옴
+                // RUNNER는 우측 경고 생성 후 플레이어를 좌향으로 강타 돌진
+                if (this.zombieType === 'NORMAL') {
+                    // X축: 플레이어 방향(오른쪽)으로 전진
+                    vx = this.speed;
+                    // Y축: 플레이어의 높이 실시간 추종
+                    vy = (player.y > this.y) ? this.speed * 0.5 : -this.speed * 0.5;
+                } else if (this.zombieType === 'RUNNER') {
+                    // 일직선 극강의 대시 질주 (Y고정, X축 좌향 돌격)
+                    vx = -this.speed;
+                } else if (this.zombieType === 'STALKER') {
+                    // 사방 압박형 스토커 추적
+                    const angle = Phaser.Math.Angle.Between(this.x, this.y, player.x, player.y);
+                    vx = Math.cos(angle) * this.speed;
+                    vy = Math.sin(angle) * this.speed;
+                }
+
+                this.body.setVelocity(vx * window.gameData.timeScale, vy * window.gameData.timeScale);
+
+                // 좀비 걷기 바운싱 진동감 부여
+                this.y += Math.sin(this.scene.time.now * 0.01 + this.x) * 0.2;
+
+                // 화면 밖 무의미하게 멀어지거나 뒤로 나가면 자동 deactive 풀 반환
+                if (this.zombieType === 'NORMAL' && this.x > 840) {
+                    this.deactivate();
+                }
+                if (this.zombieType === 'RUNNER' && this.x < -40) {
+                    this.deactivate();
+                }
+
+            } else if (this.currentState === 'KNOCKBACK') {
+                // 피격 넉백
+                this.knockbackTimer -= modifiedDelta;
+                if (this.knockbackTimer <= 0) {
+                    this.currentState = 'CHASING';
+                }
+
+            } else if (this.currentState === 'DEAD_FLY') {
+                // 사망 시 회전 날아가기
+                this.angle += (this.deathRotationSpeed * window.gameData.timeScale);
+                
+                // 화면 우측으로 사라졌는지 판정
+                if (this.x > 830) {
+                    // 뒤쪽 콤보 무리(Grouping) 목록으로 통합 이적
+                    this.scene.addZombiesToHorde(1);
+                    this.deactivate();
+                }
+            }
+        }
+
+        takeDamage() {
+            this.hp--;
+            if (this.hp <= 0) {
+                // 죽음 연출 진입
+                this.currentState = 'DEAD_FLY';
+                this.body.setEnable(false); // 물리 실선 비활성화로 렉 방지
+                
+                // 격파 시 우측 공중으로 날리는 모멘텀 적용
+                this.body.setVelocity(400 * window.gameData.timeScale, -250 * window.gameData.timeScale);
+                this.deathRotationSpeed = (Math.random() > 0.5) ? 8 : -8;
+                
+                // 좀비 녹색 피 사격 파티클 이펙트
+                this.zombieGreenBurst(this.x, this.y);
+
+                // 스토커 좀비 처치 시, 안에 있던 연구원 시민 NPC 구출 활성화
+                if (this.zombieType === 'STALKER') {
+                    this.scene.rescueScientist(this.x, this.y);
+                }
+            } else {
+                // 체력 남았을 시 넉백
+                this.currentState = 'KNOCKBACK';
+                this.knockbackTimer = 200; // 0.2초 넉백 유지
+                this.body.setVelocity(150 * window.gameData.timeScale, 0); // 진행반대(우측)로 튕겨남
+            }
+        }
+
+        zombieGreenBurst(x, y) {
+            const emitter = this.scene.add.particles(x, y, 'particle_zombie', {
+                speed: { min: -120, max: 120 },
+                angle: { min: 0, max: 360 },
+                scale: { start: 1, end: 0 },
+                lifespan: 500,
+                gravityY: 200,
+                maxParticles: 8
+            });
+            emitter.setDepth(10);
+        }
+
+        deactivate() {
+            this.setActive(false);
+            this.setVisible(false);
+            this.body.setVelocity(0, 0);
+            this.body.setEnable(true); // 재활용 시 대비 물리 바운드 복구
+        }
+    }
+
+    // ==========================================
+    // 12. Phaser 게임 부트 기동 스크립트
+    // ==========================================
+    const config = {
+        type: Phaser.AUTO,
+        parent: 'phaser-game',
+        width: GAME_CONFIG.width,
+        height: GAME_CONFIG.height,
+        pixelArt: true,
+        scale: {
+            mode: Phaser.Scale.FIT,
+            autoCenter: Phaser.Scale.CENTER_BOTH
+        },
+        dom: {
+            createContainer: true // HTML 엘리먼트 오버레이 바인딩 활성화
+        },
+        physics: {
+            default: 'arcade',
+            arcade: {
+                gravity: { y: 0 },
+                debug: false
+            }
+        },
+        scene: [BootScene, TitleScene, IntroScene, PlayScene, EndingScene]
+    };
+
+    const phaserGame = new Phaser.Game(config);
+</script>
+
+</body>
+</html>
