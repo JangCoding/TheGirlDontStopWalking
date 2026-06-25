@@ -1072,24 +1072,31 @@
             document.getElementById('rescued-card').style.display = 'none';
             document.getElementById('btn-rescue').innerText = "시민구출: NO";
             
-            // 배경 생성 (패럴랙스 레이어: 먼 배경, 중간 지면)
+            // 배경 생성 (패럴랙스 레이어: 뒷배경, 앞배경, 지면)
             this.stageIndex = 0;
             this.currentStageConfig = GAME_CONFIG.stages[this.stageIndex];
             
+            // 뒷배경 (Distant Background - 가장 느림)
             this.skyBg = this.add.tileSprite(400, 150, 800, 300, null).setScrollFactor(0);
-            this.updateBackgroundTexture();
-
-            // 바닥 지형 (물리 강체 바닥 대신 높이 고정)
+            
+            // 앞배경/중간배경 (Forefront/Midground - 중간 속도)
+            this.midBg = this.add.tileSprite(400, 200, 800, 200, null).setScrollFactor(0);
+            this.midBg.setDepth(1);
+            
+            // 바닥 지형 (바닥 - 가장 빠름)
             this.groundY = 320;
             this.ground = this.add.tileSprite(400, 360, 800, 80, null);
+            this.ground.setDepth(2);
+
+            this.updateBackgroundTexture();
             this.updateGroundTexture();
 
             // 물리 시스템 설정
             this.physics.world.setBounds(0, 0, 800, 400);
             this.physics.world.drawDebug = window.gameData.showHitboxes;
 
-            // 플레이어 인스턴스
-            this.player = new Player(this, 150, this.groundY);
+            // 플레이어 인스턴스 (정가운데 스폰: X는 화면의 중심 400, Y는 240~368의 중간인 300)
+            this.player = new Player(this, 400, 300);
             
             // 좀비 그룹 및 풀링
             this.zombieGroup = this.physics.add.group({
@@ -1192,10 +1199,11 @@
             // 무리(Horde) 포메이션 업데이트
             this.updateHordeFormation(modifiedDelta);
 
-            // 패럴랙스 배경 및 바닥 스크롤 (좌측 주행 표현하기 위해 배경을 우측으로 롤링)
+            // 패럴랙스 배경 및 바닥 스크롤 (앞배경/뒷배경/지면 각자 다른 속도로 우측 스크롤)
             const speedMultiplier = this.currentStageConfig.scrollSpeed * window.gameData.timeScale;
-            this.skyBg.tilePositionX -= (0.5 * speedMultiplier);
-            this.ground.tilePositionX -= (3.0 * speedMultiplier);
+            this.skyBg.tilePositionX -= (0.2 * speedMultiplier); // 뒷배경 매우 느림
+            this.midBg.tilePositionX -= (1.2 * speedMultiplier); // 앞배경 중간 속도
+            this.ground.tilePositionX -= (2.5 * speedMultiplier); // 바닥 가장 빠름
 
             // 누적 거리 환산
             window.gameData.distanceWalked += (0.05 * speedMultiplier);
@@ -1276,7 +1284,7 @@
             if (this.zombieGroup.getTotalUsed() >= 20) return; // 오브젝트 풀 한계치 작동
             
             const rand = Math.random();
-            const yPos = Phaser.Math.Between(100, this.groundY);
+            const yPos = Phaser.Math.Between(240, 360);
 
             if (rand < 0.3 && window.gameData.elapsedTime > 20) {
                 // RUNNER 좀비 (우측 알림 경보 후 대시 돌격)
@@ -1324,7 +1332,7 @@
         spawnItemBox() {
             // 알약 혹은 상자 생성
             const x = Phaser.Math.Between(300, 700);
-            const y = Phaser.Math.Between(150, this.groundY);
+            const y = Phaser.Math.Between(240, 360);
             
             if (Math.random() < 0.5) {
                 // 상자 (속에 스토커 좀비 탑재)
@@ -1428,7 +1436,7 @@
             for (let i = 0; i < count; i++) {
                 // 우측 좀비 군단 영역에 사각형 좀비 인스턴스 렌더링
                 const rx = Phaser.Math.Between(580, 780);
-                const ry = Phaser.Math.Between(150, this.groundY);
+                const ry = Phaser.Math.Between(240, 360);
                 const hz = this.physics.add.sprite(rx, ry, 'zombie_normal');
                 hz.setDepth(3);
                 
@@ -1451,7 +1459,7 @@
                 const row = Math.floor(idx / 4);
                 
                 const targetX = 640 + col * 32 + waveOffset;
-                const targetY = 180 + row * 18 + bobOffset;
+                const targetY = 250 + row * 18 + bobOffset; // 벨트스크롤 바닥 Y축 매칭 조정
 
                 // 부드러운 선형 보간 이동 (LERP)
                 hz.x = Phaser.Math.Linear(hz.x, targetX, 0.05 * window.gameData.timeScale);
@@ -1544,20 +1552,90 @@
         updateBackgroundTexture() {
             let colorHex = GAME_CONFIG.stages[this.stageIndex].bgColor;
             
-            // 동적 그라데이션 빌드 대신 타일 픽셀 드로잉 채색
-            let key = `bg_stage_${this.stageIndex}`;
-            if (!this.textures.exists(key)) {
-                let canvas = this.textures.createCanvas(key, 32, 32);
+            // 1. 뒷배경 (Distant Sky) 텍스처
+            let skyKey = `bg_sky_stage_${this.stageIndex}`;
+            if (!this.textures.exists(skyKey)) {
+                let canvas = this.textures.createCanvas(skyKey, 64, 64);
                 let ctx = canvas.context;
                 ctx.fillStyle = this.stageColorToCss(colorHex);
-                ctx.fillRect(0, 0, 32, 32);
+                ctx.fillRect(0, 0, 64, 64);
                 
-                // 노을/건물 간이 표현용 미세 패널선
-                ctx.fillStyle = 'rgba(255,255,255,0.06)';
-                ctx.fillRect(0, 24, 32, 8);
+                // 먼 산맥/건물 실루엣
+                ctx.fillStyle = 'rgba(0,0,0,0.1)';
+                if (this.stageIndex === 0) {
+                    // Stage 1: 완만한 먼 산맥 실루엣
+                    ctx.beginPath();
+                    ctx.moveTo(0, 64);
+                    ctx.lineTo(16, 44);
+                    ctx.lineTo(32, 54);
+                    ctx.lineTo(48, 38);
+                    ctx.lineTo(64, 64);
+                    ctx.fill();
+                } else if (this.stageIndex === 1) {
+                    // Stage 2: 멀리 보이는 빌딩 실루엣
+                    ctx.fillRect(4, 30, 12, 34);
+                    ctx.fillRect(24, 40, 10, 24);
+                    ctx.fillRect(44, 25, 14, 39);
+                } else {
+                    // Stage 3: 건설 현장 먼 뼈대 실루엣
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(10, 64); ctx.lineTo(10, 20);
+                    ctx.moveTo(0, 30); ctx.lineTo(40, 30);
+                    ctx.moveTo(35, 64); ctx.lineTo(35, 15);
+                    ctx.moveTo(20, 25); ctx.lineTo(50, 25);
+                    ctx.stroke();
+                }
                 canvas.refresh();
             }
-            this.skyBg.setTexture(key);
+            this.skyBg.setTexture(skyKey);
+
+            // 2. 앞배경 (Midground Details) 텍스처
+            let midKey = `bg_mid_stage_${this.stageIndex}`;
+            if (!this.textures.exists(midKey)) {
+                let canvas = this.textures.createCanvas(midKey, 128, 128);
+                let ctx = canvas.context;
+                
+                ctx.clearRect(0, 0, 128, 128);
+                
+                if (this.stageIndex === 0) {
+                    // Stage 1: 가까운 빌딩 & 주택 실루엣
+                    ctx.fillStyle = 'rgba(60, 40, 30, 0.35)';
+                    ctx.fillRect(10, 60, 48, 68);
+                    ctx.beginPath();
+                    ctx.moveTo(4, 60); ctx.lineTo(34, 35); ctx.lineTo(64, 60);
+                    ctx.fill();
+                    ctx.fillStyle = 'rgba(216, 141, 85, 0.15)';
+                    ctx.fillRect(24, 75, 12, 12);
+                } else if (this.stageIndex === 1) {
+                    // Stage 2: 폐허 건물 & 펜스 실루엣
+                    ctx.fillStyle = 'rgba(20, 30, 50, 0.5)';
+                    ctx.fillRect(20, 40, 80, 88);
+                    ctx.strokeStyle = 'rgba(255, 0, 127, 0.15)';
+                    ctx.strokeRect(30, 50, 60, 20);
+                    ctx.fillStyle = 'rgba(20, 30, 50, 0.35)';
+                    ctx.fillRect(0, 100, 128, 28);
+                } else {
+                    // Stage 3: 철골 크레인 및 펜스 구조
+                    ctx.strokeStyle = 'rgba(229, 169, 59, 0.25)';
+                    ctx.lineWidth = 4;
+                    ctx.beginPath();
+                    ctx.moveTo(15, 128); ctx.lineTo(15, 20);
+                    ctx.moveTo(15, 30); ctx.lineTo(100, 30);
+                    ctx.stroke();
+                    
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(40, 80, 48, 48);
+                    ctx.beginPath();
+                    ctx.moveTo(40, 80); ctx.lineTo(88, 128);
+                    ctx.moveTo(88, 80); ctx.lineTo(40, 128);
+                    ctx.stroke();
+                }
+                canvas.refresh();
+            }
+            this.midBg.setTexture(midKey);
         }
 
         updateGroundTexture() {
@@ -2152,6 +2230,10 @@
             // 플레이 구역 범위 가두기 조항 (좌측 2/3 영역인 x: 30 ~ x: 530)
             if (this.x < 30) this.x = 30;
             if (this.x > 530) this.x = 530;
+
+            // 상하 움직이는 영역 제한 (화면 바닥 400 기준 40%인 Y: 240 ~ Y: 368)
+            if (this.y < 240) this.y = 240;
+            if (this.y > 368) this.y = 368;
 
             // 3. 공격 감지 (Spacebar)
             if (Phaser.Input.Keyboard.JustDown(this.scene.attackKey)) {
