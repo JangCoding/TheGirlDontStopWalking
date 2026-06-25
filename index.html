@@ -497,6 +497,7 @@
         isScientistRescued: false,// 연구원 구출 여부
         maxZombieCombo: 0,        // 최대 실시간 그룹 좀비 수
         totalEscortedCount: 0,    // 지금까지 무리로 만든 좀비 누적 수
+        eliteHordeCount: 0,       // 현재 무리에 합류한 엘리트 좀비 수
         distanceWalked: 0,        // 이동 거리 (m)
         currentHumanity: 100,     // 실시간 인간성 수치
         timeScale: 1,             // 게임 배속 배율
@@ -1076,16 +1077,16 @@
             this.stageIndex = 0;
             this.currentStageConfig = GAME_CONFIG.stages[this.stageIndex];
             
-            // 뒷배경 (Distant Background - 가장 느림)
-            this.skyBg = this.add.tileSprite(400, 150, 800, 300, null).setScrollFactor(0);
+            // 뒷배경 (Distant Sky - Y: 120, H: 240)
+            this.skyBg = this.add.tileSprite(400, 120, 800, 240, null).setScrollFactor(0);
             
-            // 앞배경/중간배경 (Forefront/Midground - 중간 속도)
-            this.midBg = this.add.tileSprite(400, 200, 800, 200, null).setScrollFactor(0);
+            // 앞배경/중간배경 (Midground - Y: 130, H: 260) - 도로 위 공간을 다채롭게 표현
+            this.midBg = this.add.tileSprite(400, 130, 800, 260, null).setScrollFactor(0);
             this.midBg.setDepth(1);
             
-            // 바닥 지형 (바닥 - 가장 빠름)
-            this.groundY = 320;
-            this.ground = this.add.tileSprite(400, 360, 800, 80, null);
+            // 바닥 지형 (바닥 - Y: 320, H: 160) - 화면 하단 5%~40% 영역(Y: 240~380)을 덮는 도로
+            this.groundY = 310;
+            this.ground = this.add.tileSprite(400, 320, 800, 160, null);
             this.ground.setDepth(2);
 
             this.updateBackgroundTexture();
@@ -1095,8 +1096,8 @@
             this.physics.world.setBounds(0, 0, 800, 400);
             this.physics.world.drawDebug = window.gameData.showHitboxes;
 
-            // 플레이어 인스턴스 (정가운데 스폰: X는 화면의 중심 400, Y는 240~368의 중간인 300)
-            this.player = new Player(this, 400, 300);
+            // 플레이어 인스턴스 (정가운데 스폰: X는 화면의 중심 400, Y는 240~380의 중간인 310)
+            this.player = new Player(this, 400, 310);
             
             // 좀비 그룹 및 풀링
             this.zombieGroup = this.physics.add.group({
@@ -1118,6 +1119,16 @@
             this.itemSpawnTimer = this.time.addEvent({
                 delay: 10000, // 10초마다 알약/상자 스폰
                 callback: this.spawnItemBox,
+                callbackScope: this,
+                loop: true
+            });
+
+            // 일정 시간마다 자연스럽게 합류하는 좀비 추가 (기본 점수 어그로용)
+            this.naturalHordeTimer = this.time.addEvent({
+                delay: 12000, // 12초마다 자연스럽게 군단에 합류하는 좀비 1마리 스폰
+                callback: () => {
+                    this.addZombiesToHorde(1);
+                },
                 callbackScope: this,
                 loop: true
             });
@@ -1199,6 +1210,16 @@
             // 무리(Horde) 포메이션 업데이트
             this.updateHordeFormation(modifiedDelta);
 
+            // 아이템(상자/알약)의 좌향/우향 흐름 및 화면 밖 삭제
+            this.items.getChildren().forEach(item => {
+                if (item.active) {
+                    item.body.setVelocity(60 * window.gameData.timeScale, 0);
+                    if (item.x > 840) {
+                        item.destroy(); // 화면 우측 밖으로 완전히 나가면 삭제
+                    }
+                }
+            });
+
             // 패럴랙스 배경 및 바닥 스크롤 (앞배경/뒷배경/지면 각자 다른 속도로 우측 스크롤)
             const speedMultiplier = this.currentStageConfig.scrollSpeed * window.gameData.timeScale;
             this.skyBg.tilePositionX -= (0.2 * speedMultiplier); // 뒷배경 매우 느림
@@ -1279,474 +1300,525 @@
         // 5. 본 게임 메커니즘 함수들
         // ==========================================
         
-        // 좀비 스폰 매커니즘 (플레이어 전방 좌측 화면 밖 / 또는 우측 경고 돌진)
-        spawnZombieHazard() {
-            if (this.zombieGroup.getTotalUsed() >= 20) return; // 오브젝트 풀 한계치 작동
-            
-            const rand = Math.random();
-            const yPos = Phaser.Math.Between(240, 360);
 
-            if (rand < 0.3 && window.gameData.elapsedTime > 20) {
-                // RUNNER 좀비 (우측 알림 경보 후 대시 돌격)
-                this.spawnRunnerZombie(yPos);
-            } else {
-                // NORMAL 좀비 (좌측에서 스폰되어 오른쪽 플레이어를 향해 우향 역추격)
-                // 기획 수정안에 따라 화면 왼쪽(전방) 밖에서 나타나 다가오도록 설정
-                let z = this.zombieGroup.get(-40, yPos, 'zombie_normal');
-                if (z) {
-                    z.activate('NORMAL', 1);
-                }
-            }
+            // 좀비 스폰 매커니즘 (플레이어 전방 좌측 화면 밖 / 또는 우측 경고 돌진)
+            spawnZombieHazard() {
+                if (this.zombieGroup.getTotalUsed() >= 20) return; // 오브젝트 풀 한계치 작동
+                
+                const rand = Math.random();
+                const yPos = Phaser.Math.Between(240, 370);
 
-            // 스테이지 속도에 맞춰 주기 갱신
-            this.spawnTimer.delay = this.currentStageConfig.zombieRate / window.gameData.timeScale;
-        }
-
-        spawnRunnerZombie(yPos) {
-            // 화면 우측 경고창 (!) 3번 깜빡이기 유도
-            const warnIcon = this.add.text(760, yPos, '!', {
-                fontFamily: 'Press Start 2P',
-                fontSize: '24px',
-                fill: '#ff0055',
-                stroke: '#ffffff',
-                strokeThickness: 3
-            }).setOrigin(0.5);
-
-            this.tweens.add({
-                targets: warnIcon,
-                alpha: 0.1,
-                duration: 250 / window.gameData.timeScale,
-                yoyo: true,
-                repeat: 5,
-                onComplete: () => {
-                    warnIcon.destroy();
-                    // 돌진 좀비 생성
-                    let z = this.zombieGroup.get(840, yPos, 'zombie_runner');
+                if (rand < 0.3 && window.gameData.elapsedTime > 20) {
+                    // RUNNER 좀비 (경보 알림 후 돌격)
+                    this.spawnRunnerZombie(yPos);
+                } else {
+                    // NORMAL 좀비 (좌측에서 스폰되어 오른쪽 플레이어를 향해 우향 역추격)
+                    let z = this.zombieGroup.get(-40, yPos, 'zombie_normal');
                     if (z) {
-                        z.activate('RUNNER', 1);
+                        // 15% 확률로 체력이 2~3인 엘리트 좀비로 등장
+                        const hp = (Math.random() < 0.15) ? Phaser.Math.Between(2, 3) : 1;
+                        z.activate('NORMAL', hp);
                     }
                 }
-            });
-        }
 
-        spawnItemBox() {
-            // 알약 혹은 상자 생성
-            const x = Phaser.Math.Between(300, 700);
-            const y = Phaser.Math.Between(240, 360);
-            
-            if (Math.random() < 0.5) {
-                // 상자 (속에 스토커 좀비 탑재)
-                const box = this.items.create(x, y, 'box');
-                box.setDepth(5);
-                box.body.setSize(40, 40);
-                box.isBox = true;
-                box.hp = 2; // 방망이 2타 격파 조건
-            } else {
-                // 알약
-                const pill = this.items.create(x, y, 'pill');
-                pill.setDepth(5);
-                pill.body.setSize(16, 16);
-                pill.isPill = true;
+                // 스테이지 속도에 맞춰 주기 갱신
+                this.spawnTimer.delay = this.currentStageConfig.zombieRate / window.gameData.timeScale;
             }
-        }
 
-        // 방망이 히트박스를 이용한 좀비 타격 판정
-        hitZombiesWithBat(hitbox) {
-            // 활성 좀비들 판정
-            this.zombieGroup.getChildren().forEach(zombie => {
-                if (zombie.active && Phaser.Geom.Intersects.RectangleToRectangle(hitbox, zombie.getBounds())) {
-                    zombie.takeDamage();
-                }
-            });
+            spawnRunnerZombie(yPos) {
+                // 러너좀비는 왼쪽/오른쪽 랜덤 스폰 (경고창 위치 및 스폰 좌표 동기화)
+                const isLeft = Math.random() < 0.5;
+                const warnX = isLeft ? 40 : 760;
+                const spawnX = isLeft ? -40 : 840;
 
-            // 상자 파괴 판정
-            this.items.getChildren().forEach(item => {
-                if (item.active && item.isBox && Phaser.Geom.Intersects.RectangleToRectangle(hitbox, item.getBounds())) {
-                    item.hp--;
-                    // 파편 튐 효과
-                    this.woodParticleBurst(item.x, item.y);
-                    if (item.hp <= 0) {
-                        this.breakBox(item);
-                    }
-                }
-            });
-        }
+                const warnIcon = this.add.text(warnX, yPos, '!', {
+                    fontFamily: 'Press Start 2P',
+                    fontSize: '24px',
+                    fill: '#ff0055',
+                    stroke: '#ffffff',
+                    strokeThickness: 3
+                }).setOrigin(0.5);
 
-        breakBox(box) {
-            box.destroy();
-            showSubtitle("보급 상자 격파! 스토커 좀비 출현!", 1500);
-
-            // 상자 위치에 STALKER 좀비 생성
-            let stalker = this.zombieGroup.get(box.x, box.y, 'zombie_stalker');
-            if (stalker) {
-                stalker.activate('STALKER', 1);
-            }
-        }
-
-        rescueScientist(spawnX, spawnY) {
-            // 연구원 NPC 스폰
-            const npc = this.physics.add.sprite(spawnX, spawnY, 'scientist');
-            npc.setDepth(4);
-            
-            // 구조 느낌표 (!) 생성
-            const icon = this.add.text(spawnX, spawnY - 30, '!', {
-                fontFamily: 'Orbitron',
-                fontSize: '18px',
-                fill: '#00d2fc',
-                stroke: '#000000',
-                strokeThickness: 2
-            }).setOrigin(0.5);
-
-            window.gameData.isScientistRescued = true;
-            document.getElementById('rescued-card').style.display = 'flex';
-            document.getElementById('rescued-status').innerText = 'RESCUED';
-            document.getElementById('rescued-status').style.color = 'var(--neon-cyan)';
-            document.getElementById('btn-rescue').innerText = "시민구출: YES";
-
-            showSubtitle("연구원 구출 성공! 탈출선 조력 대기.", 3000);
-
-            // 우측 방향으로 탈출해 밀려나는 연출
-            this.tweens.add({
-                targets: [npc, icon],
-                x: '+=300',
-                alpha: 0,
-                duration: 2500 / window.gameData.timeScale,
-                onComplete: () => {
-                    npc.destroy();
-                    icon.destroy();
-                }
-            });
-        }
-
-        woodParticleBurst(x, y) {
-            const emitter = this.add.particles(x, y, 'particle_wood', {
-                speed: { min: -100, max: 100 },
-                angle: { min: 0, max: 360 },
-                scale: { start: 1, end: 0 },
-                blendMode: 'NORMAL',
-                lifespan: 600,
-                gravityY: 300,
-                maxParticles: 8
-            });
-            emitter.setDepth(10);
-        }
-
-        // 좀비 격파 후 군단에 추가
-        addZombiesToHorde(count) {
-            for (let i = 0; i < count; i++) {
-                // 우측 좀비 군단 영역에 사각형 좀비 인스턴스 렌더링
-                const rx = Phaser.Math.Between(580, 780);
-                const ry = Phaser.Math.Between(240, 360);
-                const hz = this.physics.add.sprite(rx, ry, 'zombie_normal');
-                hz.setDepth(3);
-                
-                // 스케일 오르내림 등으로 흔들리는 효과
-                this.physics.add.overlap(this.player, hz, () => {}, null, this);
-                this.hordeZombies.push(hz);
-            }
-        }
-
-        updateHordeFormation(delta) {
-            const time = this.time.now;
-            // 무리의 뒤따름 흔들림 포메이션 구현 (우측 1/3 지역 포지셔닝 타겟 바인딩)
-            this.hordeZombies.forEach((hz, idx) => {
-                // 흔들림 주기 파장 계산
-                const bobOffset = Math.sin(time * 0.003 + idx * 0.2) * 8;
-                const waveOffset = Math.cos(time * 0.002 + idx * 0.1) * 12;
-
-                // 타겟 바인딩 포지션 (오른쪽에 자연스럽게 뭉치도록 유도)
-                const col = idx % 4;
-                const row = Math.floor(idx / 4);
-                
-                const targetX = 640 + col * 32 + waveOffset;
-                const targetY = 250 + row * 18 + bobOffset; // 벨트스크롤 바닥 Y축 매칭 조정
-
-                // 부드러운 선형 보간 이동 (LERP)
-                hz.x = Phaser.Math.Linear(hz.x, targetX, 0.05 * window.gameData.timeScale);
-                hz.y = Phaser.Math.Linear(hz.y, Math.min(this.groundY, targetY), 0.05 * window.gameData.timeScale);
-            });
-        }
-
-        // ==========================================
-        // 6. 충돌 및 이벤트 가위바위보 판정
-        // ==========================================
-        handlePlayerDamage(player, zombie) {
-            // 마지막 스테이지(공사장, 180초 이상)에서는 좀비 상태이며 무적이므로 충돌 피해 없음
-            if (window.gameData.elapsedTime >= 180) return;
-
-            if (!zombie.active || player.isInvincible) return;
-
-            // 돌진 좀비 대시 회피 유도 등
-            window.gameData.currentHumanity -= GAME_CONFIG.humanityLossOnHit;
-            
-            // 데미지 사운드 폴백 비프음
-            this.playPulseSound(120, 0.15);
-
-            // 무적 점멸 가동
-            player.triggerInvincibility();
-
-            // 좀비에 맞으면 콤보가 리셋되지 않고 좀비 무리에서 3마리씩 감염 도망쳐 삭제 (어그로 감소 패널티)
-            const penalty = Math.min(3, this.hordeZombies.length);
-            for(let i=0; i<penalty; i++) {
-                let hz = this.hordeZombies.pop();
-                if (hz) hz.destroy();
-            }
-            window.gameData.totalEscortedCount = this.hordeZombies.length;
-            
-            // 피격 바운스백
-            player.x += 35; // 우측(뒤쪽)으로 밀림
-            
-            showSubtitle(`좀비 습격 피격! 인간성 감소! 군단 어그로 이탈.`, 1500);
-
-            // 0 도달 시 감염 데드엔딩 (Player FSM에서도 체크하지만 이중 보장)
-            if (window.gameData.currentHumanity <= 0) {
-                this.triggerGameOverInfection();
-            }
-        }
-
-        handleItemCollect(player, item) {
-            if (item.isPill) {
-                // 알약 획득
-                item.destroy();
-                addPillCount(1);
-                window.gameData.currentHumanity = Math.min(GAME_CONFIG.maxHumanity, window.gameData.currentHumanity + GAME_CONFIG.humanityRestorePill);
-                this.playPulseSound(440, 0.08); // 청량한 피치톤
-                showSubtitle("인간성 알약 흡수! 정신력 회복 (+20)", 1500);
-            }
-        }
-
-        // ==========================================
-        // 7. 스테이지 전환 연출
-        // ==========================================
-        checkTimelineStageTransitions() {
-            if (this.stageIndex >= GAME_CONFIG.stages.length - 1) return;
-
-            const nextStageConfig = GAME_CONFIG.stages[this.stageIndex + 1];
-            if (window.gameData.elapsedTime >= nextStageConfig.time) {
-                this.stageIndex++;
-                this.transitionToNextStage(nextStageConfig);
-            }
-        }
-
-        transitionToNextStage(config) {
-            this.currentStageConfig = config;
-            
-            // 화면 1초간 페이드 아웃 연출
-            this.cameras.main.fadeOut(800, 0, 0, 0);
-            this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
-                
-                // 배경 변경
-                this.updateBackgroundTexture();
-                this.updateGroundTexture();
-
-                // 적 스폰 주기 변경
-                this.spawnTimer.delay = config.zombieRate / window.gameData.timeScale;
-
-                this.cameras.main.fadeIn(800, 0, 0, 0);
-                this.showStageBanner(config.name);
-                
-                showSubtitle(`스테이지 돌입: ${config.name}`, 3000);
-            });
-        }
-
-        updateBackgroundTexture() {
-            let colorHex = GAME_CONFIG.stages[this.stageIndex].bgColor;
-            
-            // 1. 뒷배경 (Distant Sky) 텍스처
-            let skyKey = `bg_sky_stage_${this.stageIndex}`;
-            if (!this.textures.exists(skyKey)) {
-                let canvas = this.textures.createCanvas(skyKey, 64, 64);
-                let ctx = canvas.context;
-                ctx.fillStyle = this.stageColorToCss(colorHex);
-                ctx.fillRect(0, 0, 64, 64);
-                
-                // 먼 산맥/건물 실루엣
-                ctx.fillStyle = 'rgba(0,0,0,0.1)';
-                if (this.stageIndex === 0) {
-                    // Stage 1: 완만한 먼 산맥 실루엣
-                    ctx.beginPath();
-                    ctx.moveTo(0, 64);
-                    ctx.lineTo(16, 44);
-                    ctx.lineTo(32, 54);
-                    ctx.lineTo(48, 38);
-                    ctx.lineTo(64, 64);
-                    ctx.fill();
-                } else if (this.stageIndex === 1) {
-                    // Stage 2: 멀리 보이는 빌딩 실루엣
-                    ctx.fillRect(4, 30, 12, 34);
-                    ctx.fillRect(24, 40, 10, 24);
-                    ctx.fillRect(44, 25, 14, 39);
-                } else {
-                    // Stage 3: 건설 현장 먼 뼈대 실루엣
-                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.moveTo(10, 64); ctx.lineTo(10, 20);
-                    ctx.moveTo(0, 30); ctx.lineTo(40, 30);
-                    ctx.moveTo(35, 64); ctx.lineTo(35, 15);
-                    ctx.moveTo(20, 25); ctx.lineTo(50, 25);
-                    ctx.stroke();
-                }
-                canvas.refresh();
-            }
-            this.skyBg.setTexture(skyKey);
-
-            // 2. 앞배경 (Midground Details) 텍스처
-            let midKey = `bg_mid_stage_${this.stageIndex}`;
-            if (!this.textures.exists(midKey)) {
-                let canvas = this.textures.createCanvas(midKey, 128, 128);
-                let ctx = canvas.context;
-                
-                ctx.clearRect(0, 0, 128, 128);
-                
-                if (this.stageIndex === 0) {
-                    // Stage 1: 가까운 빌딩 & 주택 실루엣
-                    ctx.fillStyle = 'rgba(60, 40, 30, 0.35)';
-                    ctx.fillRect(10, 60, 48, 68);
-                    ctx.beginPath();
-                    ctx.moveTo(4, 60); ctx.lineTo(34, 35); ctx.lineTo(64, 60);
-                    ctx.fill();
-                    ctx.fillStyle = 'rgba(216, 141, 85, 0.15)';
-                    ctx.fillRect(24, 75, 12, 12);
-                } else if (this.stageIndex === 1) {
-                    // Stage 2: 폐허 건물 & 펜스 실루엣
-                    ctx.fillStyle = 'rgba(20, 30, 50, 0.5)';
-                    ctx.fillRect(20, 40, 80, 88);
-                    ctx.strokeStyle = 'rgba(255, 0, 127, 0.15)';
-                    ctx.strokeRect(30, 50, 60, 20);
-                    ctx.fillStyle = 'rgba(20, 30, 50, 0.35)';
-                    ctx.fillRect(0, 100, 128, 28);
-                } else {
-                    // Stage 3: 철골 크레인 및 펜스 구조
-                    ctx.strokeStyle = 'rgba(229, 169, 59, 0.25)';
-                    ctx.lineWidth = 4;
-                    ctx.beginPath();
-                    ctx.moveTo(15, 128); ctx.lineTo(15, 20);
-                    ctx.moveTo(15, 30); ctx.lineTo(100, 30);
-                    ctx.stroke();
-                    
-                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-                    ctx.lineWidth = 1;
-                    ctx.strokeRect(40, 80, 48, 48);
-                    ctx.beginPath();
-                    ctx.moveTo(40, 80); ctx.lineTo(88, 128);
-                    ctx.moveTo(88, 80); ctx.lineTo(40, 128);
-                    ctx.stroke();
-                }
-                canvas.refresh();
-            }
-            this.midBg.setTexture(midKey);
-        }
-
-        updateGroundTexture() {
-            let key = `ground_stage_${this.stageIndex}`;
-            if (!this.textures.exists(key)) {
-                let canvas = this.textures.createCanvas(key, 32, 32);
-                let ctx = canvas.context;
-                
-                // 테마에 맞는 바닥색 채우기
-                if (this.stageIndex === 0) ctx.fillStyle = '#8d6e63'; // 저녁 길 흙벽돌 색
-                else if (this.stageIndex === 1) ctx.fillStyle = '#455a64'; // 폐허 아스팔트
-                else ctx.fillStyle = '#37474f'; // 공사장 골조 철판색
-                
-                ctx.fillRect(0, 0, 32, 32);
-                ctx.fillStyle = 'rgba(0,0,0,0.15)';
-                ctx.fillRect(0, 0, 32, 4); // 깊이감 디바이드선
-                canvas.refresh();
-            }
-            this.ground.setTexture(key);
-        }
-
-        stageColorToCss(hex) {
-            return '#' + String(hex.toString(16)).padStart(6, '0');
-        }
-
-        showStageBanner(name) {
-            const banner = this.add.text(400, 160, name, {
-                fontFamily: 'Orbitron',
-                fontSize: '24px',
-                fontWeight: 'bold',
-                fill: '#ffffff',
-                stroke: '#000000',
-                strokeThickness: 4
-            }).setOrigin(0.5).setDepth(20).setAlpha(0);
-
-            this.tweens.add({
-                targets: banner,
-                alpha: 1,
-                y: 120,
-                duration: 600 / window.gameData.timeScale,
-                yoyo: true,
-                hold: 1500 / window.gameData.timeScale,
-                onComplete: () => {
-                    banner.destroy();
-                }
-            });
-            
-            document.getElementById('stage-name-display').innerText = name.split(' ')[0];
-        }
-
-        // ==========================================
-        // 8. 조작 박탈 및 엔딩 돌입 제어
-        // ==========================================
-        triggerGameOverInfection() {
-            if (this.isGameOver) return;
-            this.isGameOver = true;
-
-            // 플레이 도중 인간성 0: 좀비 감염 패배 연출 (쓰러짐 + 좀비 떼 덮침)
-            this.physics.pause();
-            
-            // 플레이어 쓰러짐 연출 (-90도 꺾여 눕는 형태)
-            this.player.angle = -90;
-            this.player.setTexture('player_infected');
-            
-            // 주위 좀비들이 덮치는 비주얼 연출
-            for (let i = 0; i < 8; i++) {
-                const rx = this.player.x + Phaser.Math.Between(-30, 30);
-                const ry = this.player.y + Phaser.Math.Between(-30, 30);
-                const swarmZombie = this.add.sprite(rx, ry, 'zombie_normal');
-                swarmZombie.setDepth(12); // 플레이어보다 위에 렌더링
-                swarmZombie.angle = Phaser.Math.Between(-45, 45);
-                
                 this.tweens.add({
-                    targets: swarmZombie,
-                    scale: 1.1,
-                    x: this.player.x + Phaser.Math.Between(-8, 8),
-                    y: this.player.y + Phaser.Math.Between(-8, 8),
-                    duration: 300 / window.gameData.timeScale,
-                    ease: 'Bounce.easeOut'
+                    targets: warnIcon,
+                    alpha: 0.1,
+                    duration: 250 / window.gameData.timeScale,
+                    yoyo: true,
+                    repeat: 5,
+                    onComplete: () => {
+                        warnIcon.destroy();
+                        let z = this.zombieGroup.get(spawnX, yPos, 'zombie_runner');
+                        if (z) {
+                            z.runnerDirection = isLeft ? 1 : -1;
+                            z.activate('RUNNER', 1);
+                        }
+                    }
                 });
             }
 
-            stopSynthBeat();
-            if (window.bgmPlayer) window.bgmPlayer.pause();
+            spawnItemBox() {
+                // 상자랑 알약도 좀비처럼 왼쪽 끝에서 등장
+                const x = -40;
+                const y = Phaser.Math.Between(240, 370);
+                const speed = 60; // 초당 60픽셀 속도로 우향 이동
+                
+                if (Math.random() < 0.5) {
+                    // 상자 (속에 스토커 좀비 탑재)
+                    const box = this.items.create(x, y, 'box');
+                    box.setDepth(5);
+                    box.body.setSize(40, 40);
+                    box.isBox = true;
+                    box.hp = 2; // 방망이 2타 격파 조건
+                    box.body.setVelocity(speed * window.gameData.timeScale, 0);
+                } else {
+                    // 알약
+                    const pill = this.items.create(x, y, 'pill');
+                    pill.setDepth(5);
+                    pill.body.setSize(16, 16);
+                    pill.isPill = true;
+                    pill.body.setVelocity(speed * window.gameData.timeScale, 0);
+                }
+            }
 
-            showSubtitle("그녀는 쓰러졌고, 무자비한 좀비 떼가 그녀를 덮쳐왔다...", 4000);
+            // 방망이 히트박스를 이용한 좀비 타격 판정
+            hitZombiesWithBat(hitbox) {
+                // 활성 좀비들 판정
+                this.zombieGroup.getChildren().forEach(zombie => {
+                    if (zombie.active && zombie.currentState === 'CHASING' && Phaser.Geom.Intersects.RectangleToRectangle(hitbox, zombie.getBounds())) {
+                        zombie.takeDamage();
+                    }
+                });
 
-            this.time.delayedCall(3000 / window.gameData.timeScale, () => {
-                this.cameras.main.fadeOut(1500, 0, 0, 0);
-                this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
-                    // HUD 오프
-                    document.getElementById('hud-overlay').style.display = 'none';
+                // 상자 파괴 판정
+                this.items.getChildren().forEach(item => {
+                    if (item.active && item.isBox && Phaser.Geom.Intersects.RectangleToRectangle(hitbox, item.getBounds())) {
+                        item.hp--;
+                        // 파편 튐 효과
+                        this.woodParticleBurst(item.x, item.y);
+                        if (item.hp <= 0) {
+                            this.breakBox(item);
+                        }
+                    }
+                });
+            }
+
+            breakBox(box) {
+                box.destroy();
+                showSubtitle("보급 상자 격파! 스토커 좀비 출현!", 1500);
+
+                // 상자 위치에 STALKER 좀비 생성
+                let stalker = this.zombieGroup.get(box.x, box.y, 'zombie_stalker');
+                if (stalker) {
+                    stalker.activate('STALKER', 1);
+                }
+            }
+
+            rescueScientist(spawnX, spawnY) {
+                // 연구원 NPC 스폰
+                const npc = this.physics.add.sprite(spawnX, spawnY, 'scientist');
+                npc.setDepth(4);
+                
+                // 구조 느낌표 (!) 생성
+                const icon = this.add.text(spawnX, spawnY - 30, '!', {
+                    fontFamily: 'Orbitron',
+                    fontSize: '18px',
+                    fill: '#00d2fc',
+                    stroke: '#000000',
+                    strokeThickness: 2
+                }).setOrigin(0.5);
+
+                window.gameData.isScientistRescued = true;
+                document.getElementById('rescued-card').style.display = 'flex';
+                document.getElementById('rescued-status').innerText = 'RESCUED';
+                document.getElementById('rescued-status').style.color = 'var(--neon-cyan)';
+                document.getElementById('btn-rescue').innerText = "시민구출: YES";
+
+                showSubtitle("연구원 구출 성공! 탈출선 조력 대기.", 3000);
+
+                // 우측 방향으로 탈출해 밀려나는 연출
+                this.tweens.add({
+                    targets: [npc, icon],
+                    x: '+=300',
+                    alpha: 0,
+                    duration: 2500 / window.gameData.timeScale,
+                    onComplete: () => {
+                        npc.destroy();
+                        icon.destroy();
+                    }
+                });
+            }
+
+            woodParticleBurst(x, y) {
+                const emitter = this.add.particles(x, y, 'particle_wood', {
+                    speed: { min: -100, max: 100 },
+                    angle: { min: 0, max: 360 },
+                    scale: { start: 1, end: 0 },
+                    blendMode: 'NORMAL',
+                    lifespan: 600,
+                    gravityY: 300,
+                    maxParticles: 8
+                });
+                emitter.setDepth(10);
+            }
+
+            // 좀비 격파 후 군단에 추가
+            addZombiesToHorde(count, isElite = false) {
+                for (let i = 0; i < count; i++) {
+                    const rx = Phaser.Math.Between(580, 780);
+                    const ry = Phaser.Math.Between(240, 360);
+                    // 아예 화면 우측 밖(850)에서 스폰하여, 무리 대형으로 쑤욱 기어들어가게 연출
+                    const hz = this.physics.add.sprite(850, ry, 'zombie_normal');
+                    hz.setDepth(3);
+                    hz.isElite = isElite;
                     
-                    // 게임오버 화면 출력
-                    this.add.text(400, 150, '[ BAD ENDING: 좀비화 감염 ]', {
-                        fontFamily: 'Noto Sans KR', fontSize: '24px', fill: '#ff0055', fontWeight: 'bold'
-                    }).setOrigin(0.5);
+                    if (isElite) {
+                        hz.setTint(0xff5555); // 엘리트 좀비 모양(붉은 틴트) 유지
+                        hz.setScale(1.25);    // 엘리트 좀비 크기 유지
+                    } else {
+                        hz.setTint(0xffffff);
+                        hz.setScale(1.0);
+                    }
 
-                    this.add.text(400, 210, `생존 거리: ${Math.floor(window.gameData.distanceWalked)}m`, {
-                        fontFamily: 'Noto Sans KR', fontSize: '14px', fill: '#ffffff'
-                    }).setOrigin(0.5);
+                    // 개별 노이즈/랜덤 움직임 값 부여
+                    hz.xNoiseSeed = Math.random() * 1000;
+                    hz.yNoiseSeed = Math.random() * 1000;
+                    hz.xOffset = Phaser.Math.Between(-30, 30); // 줄 세우기에서 개별 좌우 편차
+                    hz.yOffset = Phaser.Math.Between(-25, 25); // 줄 세우기에서 개별 상하 편차
+                    hz.speedFrequency = 0.001 + Math.random() * 0.002; // 속도 요동치는 주기성
+                    hz.moveFrequency = 0.0015 + Math.random() * 0.002;  // 위치 이동 흔들림 주기성
+                    
+                    // 스케일 오르내림 등으로 흔들리는 효과
+                    this.physics.add.overlap(this.player, hz, () => {}, null, this);
+                    this.hordeZombies.push(hz);
+                }
+                
+                // 전역 데이터 및 HUD 동기화!
+                window.gameData.totalEscortedCount = this.hordeZombies.length;
+                window.gameData.eliteHordeCount = this.hordeZombies.filter(z => z.isElite).length;
+                window.gameData.maxZombieCombo = Math.max(window.gameData.maxZombieCombo, window.gameData.totalEscortedCount);
+                document.getElementById('combo-display').innerText = window.gameData.totalEscortedCount;
+                document.getElementById('escort-display').innerText = window.gameData.totalEscortedCount;
+            }
 
-                    // 재도전 버튼
-                    const restartBtn = this.add.rectangle(400, 280, 160, 40, 0x333333).setInteractive({ useHandCursor: true });
-                    this.add.text(400, 280, '다시 시작', { fontFamily: 'Noto Sans KR', fontSize: '14px', fill: '#fff' }).setOrigin(0.5);
-                    restartBtn.on('pointerdown', () => {
-                        window.location.reload();
+            updateHordeFormation(delta) {
+                const time = this.time.now;
+                // 무리의 뒤따름 흔들림 포메이션 구현 (오른쪽에 자연스럽게 뭉치며 유기적으로 요동치게 변경)
+                this.hordeZombies.forEach((hz, idx) => {
+                    if (hz.xNoiseSeed === undefined) {
+                        hz.xNoiseSeed = Math.random() * 1000;
+                        hz.yNoiseSeed = Math.random() * 1000;
+                        hz.xOffset = Phaser.Math.Between(-30, 30);
+                        hz.yOffset = Phaser.Math.Between(-25, 25);
+                        hz.speedFrequency = 0.002;
+                        hz.moveFrequency = 0.002;
+                    }
+
+                    // 시간과 주파수를 활용한 고유 상하좌우 요동 노이즈
+                    const randomXMovement = Math.sin(time * hz.moveFrequency + hz.xNoiseSeed) * 22;
+                    const randomYMovement = Math.cos(time * hz.moveFrequency + hz.yNoiseSeed) * 16;
+
+                    // 타겟 바인딩 포지션 (기본 대형 배치 + 개별 영구 오프셋 + 실시간 흔들림 노이즈)
+                    const col = idx % 4;
+                    const row = Math.floor(idx / 4);
+                    
+                    const targetX = 640 + col * 32 + hz.xOffset + randomXMovement;
+                    const targetY = 250 + row * 18 + hz.yOffset + randomYMovement; // 벨트스크롤 바닥 Y축 매칭 조정
+
+                    // 속도가 주기적으로 부드럽게 변하도록 코사인 파동 적용 (0.02 ~ 0.08)
+                    const speedFluctuation = 0.05 + Math.cos(time * hz.speedFrequency + hz.xNoiseSeed) * 0.03;
+                    const lerpSpeed = speedFluctuation * window.gameData.timeScale;
+
+                    // 부드러운 선형 보간 이동 (LERP)
+                    hz.x = Phaser.Math.Linear(hz.x, targetX, lerpSpeed);
+                    hz.y = Phaser.Math.Linear(hz.y, Math.min(this.groundY, targetY), lerpSpeed);
+                });
+            }
+
+            // ==========================================
+            // 6. 충돌 및 이벤트 가위바위보 판정
+            // ==========================================
+            handlePlayerDamage(player, zombie) {
+                // 마지막 스테이지(공사장, 180초 이상)에서는 좀비 상태이며 무적이므로 충돌 피해 없음
+                if (window.gameData.elapsedTime >= 180) return;
+
+                if (!zombie.active || zombie.currentState !== 'CHASING' || zombie.passedPlayer || player.isInvincible) return;
+
+                // 돌진 좀비 대시 회피 유도 등
+                window.gameData.currentHumanity -= GAME_CONFIG.humanityLossOnHit;
+                
+                // 데미지 사운드 폴백 비프음
+                this.playPulseSound(120, 0.15);
+
+                // 무적 점멸 가동
+                player.triggerInvincibility();
+
+                // 좀비에 맞으면 콤보가 리셋되지 않고 좀비 무리에서 3마리씩 감염 도망쳐 삭제 (어그로 감소 패널티)
+                const penalty = Math.min(3, this.hordeZombies.length);
+                for(let i=0; i<penalty; i++) {
+                    let hz = this.hordeZombies.pop();
+                    if (hz) hz.destroy();
+                }
+                window.gameData.totalEscortedCount = this.hordeZombies.length;
+                window.gameData.eliteHordeCount = this.hordeZombies.filter(z => z.isElite).length;
+                document.getElementById('combo-display').innerText = window.gameData.totalEscortedCount;
+                document.getElementById('escort-display').innerText = window.gameData.totalEscortedCount;
+                
+                // 피격 바운스백
+                player.x += 35; // 우측(뒤쪽)으로 밀림
+                
+                showSubtitle(`좀비 습격 피격! 인간성 감소! 군단 어그로 이탈.`, 1500);
+
+                // 0 도달 시 감염 데드엔딩 (Player FSM에서도 체크하지만 이중 보장)
+                if (window.gameData.currentHumanity <= 0) {
+                    this.triggerGameOverInfection();
+                }
+            }
+
+            handleItemCollect(player, item) {
+                if (item.isPill) {
+                    // 알약 획득
+                    item.destroy();
+                    addPillCount(1);
+                    window.gameData.currentHumanity = Math.min(GAME_CONFIG.maxHumanity, window.gameData.currentHumanity + GAME_CONFIG.humanityRestorePill);
+                    this.playPulseSound(440, 0.08); // 청량한 피치톤
+                    showSubtitle("인간성 알약 흡수! 정신력 회복 (+20)", 1500);
+                }
+            }
+
+            // ==========================================
+            // 7. 스테이지 전환 연출
+            // ==========================================
+            checkTimelineStageTransitions() {
+                if (this.stageIndex >= GAME_CONFIG.stages.length - 1) return;
+
+                const nextStageConfig = GAME_CONFIG.stages[this.stageIndex + 1];
+                if (window.gameData.elapsedTime >= nextStageConfig.time) {
+                    this.stageIndex++;
+                    this.transitionToNextStage(nextStageConfig);
+                }
+            }
+
+            transitionToNextStage(config) {
+                this.currentStageConfig = config;
+                
+                // 화면 1초간 페이드 아웃 연출
+                this.cameras.main.fadeOut(800, 0, 0, 0);
+                this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+                    
+                    // 배경 변경
+                    this.updateBackgroundTexture();
+                    this.updateGroundTexture();
+
+                    // 적 스폰 주기 변경
+                    this.spawnTimer.delay = config.zombieRate / window.gameData.timeScale;
+
+                    this.cameras.main.fadeIn(800, 0, 0, 0);
+                    this.showStageBanner(config.name);
+                    
+                    showSubtitle(`스테이지 돌입: ${config.name}`, 3000);
+                });
+            }
+
+            updateBackgroundTexture() {
+                let colorHex = GAME_CONFIG.stages[this.stageIndex].bgColor;
+                
+                // 1. 뒷배경 (Distant Sky) 텍스처
+                let skyKey = `bg_sky_stage_${this.stageIndex}`;
+                if (!this.textures.exists(skyKey)) {
+                    let canvas = this.textures.createCanvas(skyKey, 64, 64);
+                    let ctx = canvas.context;
+                    ctx.fillStyle = this.stageColorToCss(colorHex);
+                    ctx.fillRect(0, 0, 64, 64);
+                    
+                    // 먼 산맥/건물 실루엣
+                    ctx.fillStyle = 'rgba(0,0,0,0.1)';
+                    if (this.stageIndex === 0) {
+                        // Stage 1: 완만한 먼 산맥 실루엣
+                        ctx.beginPath();
+                        ctx.moveTo(0, 64);
+                        ctx.lineTo(16, 44);
+                        ctx.lineTo(32, 54);
+                        ctx.lineTo(48, 38);
+                        ctx.lineTo(64, 64);
+                        ctx.fill();
+                    } else if (this.stageIndex === 1) {
+                        // Stage 2: 멀리 보이는 빌딩 실루엣
+                        ctx.fillRect(4, 30, 12, 34);
+                        ctx.fillRect(24, 40, 10, 24);
+                        ctx.fillRect(44, 25, 14, 39);
+                    } else {
+                        // Stage 3: 건설 현장 먼 뼈대 실루엣
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.moveTo(10, 64); ctx.lineTo(10, 20);
+                        ctx.moveTo(0, 30); ctx.lineTo(40, 30);
+                        ctx.moveTo(35, 64); ctx.lineTo(35, 15);
+                        ctx.moveTo(20, 25); ctx.lineTo(50, 25);
+                        ctx.stroke();
+                    }
+                    canvas.refresh();
+                }
+                this.skyBg.setTexture(skyKey);
+
+                // 2. 앞배경 (Midground Details) 텍스처
+                let midKey = `bg_mid_stage_${this.stageIndex}`;
+                if (!this.textures.exists(midKey)) {
+                    let canvas = this.textures.createCanvas(midKey, 128, 128);
+                    let ctx = canvas.context;
+                    
+                    ctx.clearRect(0, 0, 128, 128);
+                    
+                    if (this.stageIndex === 0) {
+                        // Stage 1: 가까운 빌딩 & 주택 실루엣
+                        ctx.fillStyle = 'rgba(60, 40, 30, 0.35)';
+                        ctx.fillRect(10, 60, 48, 68);
+                        ctx.beginPath();
+                        ctx.moveTo(4, 60); ctx.lineTo(34, 35); ctx.lineTo(64, 60);
+                        ctx.fill();
+                        ctx.fillStyle = 'rgba(216, 141, 85, 0.15)';
+                        ctx.fillRect(24, 75, 12, 12);
+                    } else if (this.stageIndex === 1) {
+                        // Stage 2: 폐허 건물 & 펜스 실루엣
+                        ctx.fillStyle = 'rgba(20, 30, 50, 0.5)';
+                        ctx.fillRect(20, 40, 80, 88);
+                        ctx.strokeStyle = 'rgba(255, 0, 127, 0.15)';
+                        ctx.strokeRect(30, 50, 60, 20);
+                        ctx.fillStyle = 'rgba(20, 30, 50, 0.35)';
+                        ctx.fillRect(0, 100, 128, 28);
+                    } else {
+                        // Stage 3: 철골 크레인 및 펜스 구조
+                        ctx.strokeStyle = 'rgba(229, 169, 59, 0.25)';
+                        ctx.lineWidth = 4;
+                        ctx.beginPath();
+                        ctx.moveTo(15, 128); ctx.lineTo(15, 20);
+                        ctx.moveTo(15, 30); ctx.lineTo(100, 30);
+                        ctx.stroke();
+                        
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(40, 80, 48, 48);
+                        ctx.beginPath();
+                        ctx.moveTo(40, 80); ctx.lineTo(88, 128);
+                        ctx.moveTo(88, 80); ctx.lineTo(40, 128);
+                        ctx.stroke();
+                    }
+                    canvas.refresh();
+                }
+                this.midBg.setTexture(midKey);
+            }
+
+            updateGroundTexture() {
+                let key = `ground_stage_${this.stageIndex}`;
+                if (!this.textures.exists(key)) {
+                    let canvas = this.textures.createCanvas(key, 32, 32);
+                    let ctx = canvas.context;
+                    
+                    // 테마에 맞는 바닥색 채우기
+                    if (this.stageIndex === 0) ctx.fillStyle = '#8d6e63'; // 저녁 길 흙벽돌 색
+                    else if (this.stageIndex === 1) ctx.fillStyle = '#455a64'; // 폐허 아스팔트
+                    else ctx.fillStyle = '#37474f'; // 공사장 골조 철판색
+                    
+                    ctx.fillRect(0, 0, 32, 32);
+                    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+                    ctx.fillRect(0, 0, 32, 4); // 깊이감 디바이드선
+                    canvas.refresh();
+                }
+                this.ground.setTexture(key);
+            }
+
+            stageColorToCss(hex) {
+                return '#' + String(hex.toString(16)).padStart(6, '0');
+            }
+
+            showStageBanner(name) {
+                const banner = this.add.text(400, 160, name, {
+                    fontFamily: 'Orbitron',
+                    fontSize: '24px',
+                    fontWeight: 'bold',
+                    fill: '#ffffff',
+                    stroke: '#000000',
+                    strokeThickness: 4
+                }).setOrigin(0.5).setDepth(20).setAlpha(0);
+
+                this.tweens.add({
+                    targets: banner,
+                    alpha: 1,
+                    y: 120,
+                    duration: 600 / window.gameData.timeScale,
+                    yoyo: true,
+                    hold: 1500 / window.gameData.timeScale,
+                    onComplete: () => {
+                        banner.destroy();
+                    }
+                });
+                
+                document.getElementById('stage-name-display').innerText = name.split(' ')[0];
+            }
+
+            // ==========================================
+            // 8. 조작 박탈 및 엔딩 돌입 제어
+            // ==========================================
+            triggerGameOverInfection() {
+                if (this.isGameOver) return;
+                this.isGameOver = true;
+
+                // 플레이 도중 인간성 0: 좀비 감염 패배 연출 (쓰러짐 + 좀비 떼 덮침)
+                this.physics.pause();
+                
+                // 플레이어 쓰러짐 연출 (-90도 꺾여 눕는 형태)
+                this.player.angle = -90;
+                this.player.setTexture('player_infected');
+                
+                // 주위 좀비들이 덮치는 비주얼 연출
+                for (let i = 0; i < 8; i++) {
+                    const rx = this.player.x + Phaser.Math.Between(-30, 30);
+                    const ry = this.player.y + Phaser.Math.Between(-30, 30);
+                    const swarmZombie = this.add.sprite(rx, ry, 'zombie_normal');
+                    swarmZombie.setDepth(12); // 플레이어보다 위에 렌더링
+                    swarmZombie.angle = Phaser.Math.Between(-45, 45);
+                    
+                    this.tweens.add({
+                        targets: swarmZombie,
+                        scale: 1.1,
+                        x: this.player.x + Phaser.Math.Between(-8, 8),
+                        y: this.player.y + Phaser.Math.Between(-8, 8),
+                        duration: 300 / window.gameData.timeScale,
+                        ease: 'Bounce.easeOut'
+                    });
+                }
+
+                stopSynthBeat();
+                if (window.bgmPlayer) window.bgmPlayer.pause();
+
+                showSubtitle("그녀는 쓰러졌고, 무자비한 좀비 떼가 그녀를 덮쳐왔다...", 4000);
+
+                this.time.delayedCall(3000 / window.gameData.timeScale, () => {
+                    this.cameras.main.fadeOut(1500, 0, 0, 0);
+                    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+                        // HUD 오프
+                        document.getElementById('hud-overlay').style.display = 'none';
+                        
+                        // 게임오버 화면 출력
+                        this.add.text(400, 150, '[ BAD ENDING: 좀비화 감염 ]', {
+                            fontFamily: 'Noto Sans KR', fontSize: '24px', fill: '#ff0055', fontWeight: 'bold'
+                        }).setOrigin(0.5);
+
+                        this.add.text(400, 210, `생존 거리: ${Math.floor(window.gameData.distanceWalked)}m`, {
+                            fontFamily: 'Noto Sans KR', fontSize: '14px', fill: '#ffffff'
+                        }).setOrigin(0.5);
+
+                        // 재도전 버튼
+                        const restartBtn = this.add.rectangle(400, 280, 160, 40, 0x333333).setInteractive({ useHandCursor: true });
+                        this.add.text(400, 280, '다시 시작', { fontFamily: 'Noto Sans KR', fontSize: '14px', fill: '#fff' }).setOrigin(0.5);
+                        restartBtn.on('pointerdown', () => {
+                            window.location.reload();
+                        });
                     });
                 });
-            });
-        }
+            }
+
+
 
         triggerEpilogueSequence() {
             // 에필로그 270초 생존 도달: 페이드아웃 후 절벽 에필로그 연출 씬 시작
@@ -1841,11 +1913,19 @@
             // 좀비 무리들이 플레이어 바로 뒤로 조여오며 줄지어 따라오기 연출 (EX2 스크린샷 매칭)
             this.zombies = [];
             const zombieCount = Math.max(12, Math.min(30, window.gameData.totalEscortedCount));
+            const eliteCount = window.gameData.eliteHordeCount || 0;
             for (let i = 0; i < zombieCount; i++) {
                 let rx = 800 + i * 20 + Phaser.Math.Between(-10, 10);
-                let ry = this.groundY - 16 + Phaser.Math.Between(-12, 12);
+                let ry = 310 + Phaser.Math.Between(-15, 15);
                 let z = this.physics.add.sprite(rx, ry, 'zombie_normal');
                 z.setDepth(5);
+                
+                // 앞에서부터 eliteCount 만큼 엘리트 좀비 비주얼 지정
+                if (i < eliteCount) {
+                    z.setTint(0xff5555);
+                    z.setScale(1.25);
+                }
+                
                 this.zombies.push(z);
                 
                 // 플레이어 뒤쪽 일정 갭(x + 50)을 유지하며 추적
@@ -2231,9 +2311,9 @@
             if (this.x < 30) this.x = 30;
             if (this.x > 530) this.x = 530;
 
-            // 상하 움직이는 영역 제한 (화면 바닥 400 기준 40%인 Y: 240 ~ Y: 368)
+            // 상하 움직이는 영역 제한 (화면 바닥 400 기준 5%~40% 영역인 Y: 240 ~ Y: 380)
             if (this.y < 240) this.y = 240;
-            if (this.y > 368) this.y = 368;
+            if (this.y > 380) this.y = 380;
 
             // 3. 공격 감지 (Spacebar)
             if (Phaser.Input.Keyboard.JustDown(this.scene.attackKey)) {
@@ -2341,7 +2421,9 @@
     class Zombie extends Phaser.GameObjects.Sprite {
         constructor(scene, x, y) {
             super(scene, x, y, 'zombie_normal');
+            scene.add.existing(this);
             scene.physics.add.existing(this);
+            this.setDepth(6);
             this.body.setCollideWorldBounds(false);
             
             // 초기 비활성
@@ -2353,6 +2435,7 @@
             this.currentState = 'CHASING'; // CHASING, KNOCKBACK, DEAD_FLY
             this.knockbackTimer = 0;
             this.deathRotationSpeed = 8;
+            this.passedPlayer = false;
         }
 
         activate(type, hp) {
@@ -2364,13 +2447,28 @@
             
             this.setActive(true);
             this.setVisible(true);
+            this.setDepth(6);
+            this.passedPlayer = false;
+            this.setTint(0xffffff); // 기존 틴트 제거
+            this.setScale(1.0);     // 기존 스케일 리셋
 
             if (type === 'NORMAL') {
                 this.setTexture('zombie_normal');
                 this.speed = 50 + Math.random() * 20;
+                
+                // 체력 2~3인 엘리트 좀비 비주얼/속도 튜닝
+                if (hp > 1) {
+                    this.setTint(0xff5555); // 붉은 핏빛 틴트 적용
+                    this.setScale(1.25);    // 크기 확대
+                    this.speed = 65 + Math.random() * 20; // 조금 더 빠르게 추적
+                }
             } else if (type === 'RUNNER') {
                 this.setTexture('zombie_runner');
                 this.speed = 300; // 대시 폭격
+                if (this.runnerDirection === undefined) {
+                    this.runnerDirection = -1;
+                }
+                this.setFlipX(this.runnerDirection === 1);
             } else if (type === 'STALKER') {
                 this.setTexture('zombie_stalker');
                 this.speed = 40;
@@ -2393,11 +2491,22 @@
                 if (this.zombieType === 'NORMAL') {
                     // X축: 플레이어 방향(오른쪽)으로 전진
                     vx = this.speed;
-                    // Y축: 플레이어의 높이 실시간 추종
-                    vy = (player.y > this.y) ? this.speed * 0.5 : -this.speed * 0.5;
+                    // 플레이어보다 왼쪽에 있을 때만 Y축 추종, 플레이어를 지나치면 Y축 고정 (뒤로 자연스럽게 스쳐 지나가게 처리)
+                    if (this.x < player.x + 20) {
+                        vy = (player.y > this.y) ? this.speed * 0.5 : -this.speed * 0.5;
+                        this.passedPlayer = false;
+                    } else {
+                        vy = 0;
+                        this.passedPlayer = true;
+                    }
                 } else if (this.zombieType === 'RUNNER') {
-                    // 일직선 극강의 대시 질주 (Y고정, X축 좌향 돌격)
-                    vx = -this.speed;
+                    // 일직선 극강의 대시 질주 (Y고정, X축 좌향/우향 돌격)
+                    vx = this.speed * this.runnerDirection;
+                    if (this.runnerDirection === -1) {
+                        this.passedPlayer = (this.x < player.x - 20);
+                    } else {
+                        this.passedPlayer = (this.x > player.x + 20);
+                    }
                 } else if (this.zombieType === 'STALKER') {
                     // 사방 압박형 스토커 추적
                     const angle = Phaser.Math.Angle.Between(this.x, this.y, player.x, player.y);
@@ -2414,8 +2523,12 @@
                 if (this.zombieType === 'NORMAL' && this.x > 840) {
                     this.deactivate();
                 }
-                if (this.zombieType === 'RUNNER' && this.x < -40) {
-                    this.deactivate();
+                if (this.zombieType === 'RUNNER') {
+                    if (this.runnerDirection === -1 && this.x < -40) {
+                        this.deactivate();
+                    } else if (this.runnerDirection === 1 && this.x > 840) {
+                        this.deactivate();
+                    }
                 }
 
             } else if (this.currentState === 'KNOCKBACK') {
@@ -2429,10 +2542,15 @@
                 // 사망 시 회전 날아가기
                 this.angle += (this.deathRotationSpeed * window.gameData.timeScale);
                 
-                // 화면 우측으로 사라졌는지 판정
-                if (this.x > 830) {
+                // 포물선 수동 연출 프레임 단위 이동 및 속도 반영
+                this.x += this.flyVx * (modifiedDelta / 1000);
+                this.y += this.flyVy * (modifiedDelta / 1000);
+                this.flyVy += this.flyGravity * (modifiedDelta / 1000);
+                
+                // 화면 우측 또는 아래로 완전히 사라졌는지 판정 (X축 화면 밖으로 멀리 보내기)
+                if (this.x > 850 || this.y > 500) {
                     // 뒤쪽 콤보 무리(Grouping) 목록으로 통합 이적
-                    this.scene.addZombiesToHorde(1);
+                    this.scene.addZombiesToHorde(1, this.isElite);
                     this.deactivate();
                 }
             }
@@ -2445,8 +2563,10 @@
                 this.currentState = 'DEAD_FLY';
                 this.body.setEnable(false); // 물리 실선 비활성화로 렉 방지
                 
-                // 격파 시 우측 공중으로 날리는 모멘텀 적용
-                this.body.setVelocity(400 * window.gameData.timeScale, -250 * window.gameData.timeScale);
+                // 포물선 날아갈 속도와 중력 설정 (가로로 더 멀리 날아가도록 조정)
+                this.flyVx = 580;
+                this.flyVy = -400; // 위쪽 튕김은 살짝 줄임
+                this.flyGravity = 600; // 중력을 절반으로 낮춰 처지지 않고 X축 밖으로 유도
                 this.deathRotationSpeed = (Math.random() > 0.5) ? 8 : -8;
                 
                 // 좀비 녹색 피 사격 파티클 이펙트
@@ -2459,8 +2579,10 @@
             } else {
                 // 체력 남았을 시 넉백
                 this.currentState = 'KNOCKBACK';
-                this.knockbackTimer = 200; // 0.2초 넉백 유지
-                this.body.setVelocity(150 * window.gameData.timeScale, 0); // 진행반대(우측)로 튕겨남
+                this.knockbackTimer = 250; // 0.25초 넉백 유지
+                // 피격 시 현재 X축 이동방향의 정반대 방향으로 넉백 적용
+                const kbDir = (this.body.velocity.x > 0) ? -1 : 1;
+                this.body.setVelocity(kbDir * 280 * window.gameData.timeScale, 0); // 반대편으로 크게 튕겨남
             }
         }
 
