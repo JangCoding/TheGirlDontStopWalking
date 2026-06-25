@@ -774,6 +774,22 @@
                 ctx.fillRect(8, 16, 16, 16);
             });
 
+            this.createPixelTexture('zombie_spitter', 32, 32, (ctx) => {
+                ctx.fillStyle = '#8e44ad'; // 보라색 좀비 몸체
+                ctx.fillRect(0, 0, 32, 32);
+                ctx.fillStyle = '#2ecc71'; // 연두색 눈/입가
+                ctx.fillRect(4, 4, 8, 8);
+                ctx.fillStyle = '#e67e22'; // 크게 벌린 주황색 입
+                ctx.fillRect(16, 12, 10, 10);
+            });
+
+            this.createPixelTexture('spit_acid', 12, 12, (ctx) => {
+                ctx.fillStyle = '#2ecc71'; // 밝은 연두색 독액
+                ctx.beginPath();
+                ctx.arc(6, 6, 5, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
             this.createPixelTexture('box', 40, 40, (ctx) => {
                 ctx.fillStyle = '#a0522d'; // 나무상자 브라운
                 ctx.fillRect(0, 0, 40, 40);
@@ -1154,6 +1170,7 @@
 
             // 아이템 그룹
             this.items = this.physics.add.group();
+            this.spitProjectiles = this.physics.add.group();
             this.itemSpawnTimer = this.time.addEvent({
                 delay: 10000, // 10초마다 알약/상자 스폰
                 callback: this.spawnItemBox,
@@ -1189,6 +1206,7 @@
             // 충돌/오버랩 처리
             this.physics.add.overlap(this.player, this.zombieGroup, this.handlePlayerDamage, null, this);
             this.physics.add.overlap(this.player, this.items, this.handleItemCollect, null, this);
+            this.physics.add.overlap(this.player, this.spitProjectiles, this.handleSpitDamage, null, this);
 
             // BGM 재생 연동 확인
             if (window.gameData.bgmSelected && window.bgmPlayer.paused) {
@@ -1259,11 +1277,16 @@
                 if (item.active) {
                     item.body.setVelocity(60 * window.gameData.timeScale, 0);
                     if (item.x > 840) {
-                        if (item.isBox && item.containsResearcher) {
-                            // 놓친 연구원 상자는 다음 번에 다시 기회를 주기 위해 플래그 복구
-                            this.shouldSpawnResearcherNext = true;
-                        }
                         item.destroy(); // 화면 우측 밖으로 완전히 나가면 삭제
+                    }
+                }
+            });
+
+            // 침 투사체 화면 밖 소멸 및 자체 업데이트
+            this.spitProjectiles.getChildren().forEach(spit => {
+                if (spit.active) {
+                    if (spit.x > 840 || spit.x < -40 || spit.y > 440 || spit.y < -40) {
+                        spit.destroy();
                     }
                 }
             });
@@ -1356,9 +1379,15 @@
                 const rand = Math.random();
                 const yPos = Phaser.Math.Between(240, 370);
 
-                if (rand < 0.3 && window.gameData.elapsedTime > 20) {
+                if (rand < 0.25 && window.gameData.elapsedTime > 20) {
                     // RUNNER 좀비 (경보 알림 후 돌격)
                     this.spawnRunnerZombie(yPos);
+                } else if (rand < 0.45 && window.gameData.elapsedTime > 30) {
+                    // SPITTER 좀비 (제자리에 서서 침 뱉는 원거리 좀비)
+                    let z = this.zombieGroup.get(-40, yPos, 'zombie_spitter');
+                    if (z) {
+                        z.activate('SPITTER', 1);
+                    }
                 } else {
                     // NORMAL 좀비 (좌측에서 스폰되어 오른쪽 플레이어를 향해 우향 역추격)
                     let z = this.zombieGroup.get(-40, yPos, 'zombie_normal');
@@ -1456,6 +1485,14 @@
                 this.zombieGroup.getChildren().forEach(zombie => {
                     if (zombie.active && zombie.currentState === 'CHASING' && Phaser.Geom.Intersects.RectangleToRectangle(hitbox, zombie.getBounds())) {
                         zombie.takeDamage();
+                    }
+                });
+
+                // 침 투사체 파괴 판정
+                this.spitProjectiles.getChildren().forEach(spit => {
+                    if (spit.active && Phaser.Geom.Intersects.RectangleToRectangle(hitbox, spit.getBounds())) {
+                        spit.destroy();
+                        this.woodParticleBurst(spit.x, spit.y); // 산산조각 효과 공유
                     }
                 });
 
@@ -1709,6 +1746,33 @@
                 showSubtitle(`좀비 습격 피격! 인간성 감소! 군단 어그로 이탈.`, 1500);
 
                 // 0 도달 시 감염 데드엔딩 (Player FSM에서도 체크하지만 이중 보장)
+                if (window.gameData.currentHumanity <= 0) {
+                    this.triggerGameOverInfection();
+                }
+            }
+
+            handleSpitDamage(player, spit) {
+                spit.destroy();
+                if (window.gameData.elapsedTime >= 180) return;
+                if (player.isInvincible) return;
+
+                window.gameData.currentHumanity -= GAME_CONFIG.humanityLossOnHit;
+                this.playPulseSound(120, 0.15);
+                player.triggerInvincibility();
+
+                const penalty = Math.min(3, this.hordeZombies.length);
+                for(let i=0; i<penalty; i++) {
+                    let hz = this.hordeZombies.pop();
+                    if (hz) hz.destroy();
+                }
+                window.gameData.totalEscortedCount = this.hordeZombies.length;
+                window.gameData.eliteHordeCount = this.hordeZombies.filter(z => z.isElite).length;
+                document.getElementById('combo-display').innerText = window.gameData.totalEscortedCount;
+                document.getElementById('escort-display').innerText = window.gameData.totalEscortedCount;
+                
+                player.x += 35; // 우측 밀림
+                showSubtitle(`좀비 독액 피격! 인간성 감소! 군단 어그로 이탈.`, 1500);
+
                 if (window.gameData.currentHumanity <= 0) {
                     this.triggerGameOverInfection();
                 }
@@ -2418,7 +2482,7 @@
             // 2. 키보드 움직임 제어
             let vx = 0;
             let vy = 0;
-            const speed = 180;
+            const speed = 135;
 
             if (this.scene.cursors.left.isDown || this.scene.wasd.left.isDown) {
                 vx = -speed;
@@ -2616,6 +2680,10 @@
             } else if (type === 'STALKER') {
                 this.setTexture('zombie_stalker');
                 this.speed = 40;
+            } else if (type === 'SPITTER') {
+                this.setTexture('zombie_spitter');
+                this.speed = 50;
+                this.lastSpitTime = 0;
             }
         }
 
@@ -2669,6 +2737,20 @@
                         const angle = Phaser.Math.Angle.Between(this.x, this.y, player.x, player.y);
                         vx = Math.cos(angle) * this.speed;
                         vy = Math.sin(angle) * this.speed;
+                    } else if (this.zombieType === 'SPITTER') {
+                        // SPITTER는 x: 120까지 걸어온 후 멈춰서 플레이어를 향해 침 발사
+                        if (this.x < 120) {
+                            vx = this.speed;
+                            vy = 0;
+                        } else {
+                            vx = 0;
+                            vy = 0;
+                            const now = this.scene.time.now;
+                            if (now - this.lastSpitTime > 2000 / window.gameData.timeScale) {
+                                this.lastSpitTime = now;
+                                this.spitAtPlayer();
+                            }
+                        }
                     }
                 }
 
@@ -2758,6 +2840,21 @@
             this.setVisible(false);
             this.body.setVelocity(0, 0);
             this.body.setEnable(true); // 재활용 시 대비 물리 바운드 복구
+        }
+
+        spitAtPlayer() {
+            if (!this.active || this.currentState !== 'CHASING') return;
+            const player = this.scene.player;
+            const spitX = this.x + 16;
+            const spitY = this.y;
+            
+            const spit = this.scene.spitProjectiles.create(spitX, spitY, 'spit_acid');
+            spit.setDepth(5);
+            spit.body.setSize(8, 8);
+            
+            const angle = Phaser.Math.Angle.Between(spitX, spitY, player.x, player.y);
+            const spitSpeed = 250;
+            spit.body.setVelocity(Math.cos(angle) * spitSpeed * window.gameData.timeScale, Math.sin(angle) * spitSpeed * window.gameData.timeScale);
         }
     }
 
