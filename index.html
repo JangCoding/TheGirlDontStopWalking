@@ -1362,21 +1362,31 @@
                 const y = Phaser.Math.Between(240, 370);
                 const speed = 60; // 초당 60픽셀 속도로 우향 이동
                 
-                if (Math.random() < 0.5) {
-                    // 상자 (속에 스토커 좀비 탑재)
-                    const box = this.items.create(x, y, 'box');
-                    box.setDepth(5);
-                    box.body.setSize(40, 40);
-                    box.isBox = true;
-                    box.hp = 2; // 방망이 2타 격파 조건
-                    box.body.setVelocity(speed * window.gameData.timeScale, 0);
-                } else {
-                    // 알약
-                    const pill = this.items.create(x, y, 'pill');
-                    pill.setDepth(5);
-                    pill.body.setSize(16, 16);
-                    pill.isPill = true;
-                    pill.body.setVelocity(speed * window.gameData.timeScale, 0);
+                // 보급 상자 스폰
+                const box = this.items.create(x, y, 'box');
+                box.setDepth(5);
+                box.body.setSize(40, 40);
+                box.isBox = true;
+                box.hp = 2; // 방망이 2타 격파 조건
+                box.body.setVelocity(speed * window.gameData.timeScale, 0);
+
+                // 상자 주위에 2~3마리의 좀비 생성하여 세트 배치
+                const numZombies = Phaser.Math.Between(2, 3);
+                for (let i = 0; i < numZombies; i++) {
+                    const offsetSlotX = -30 - i * 20;
+                    const offsetSlotY = Phaser.Math.Between(-20, 20);
+                    
+                    // 첫 번째 좀비는 항상 STALKER 좀비로 생성하여 처치 시 연구원 구출 가능하게 처리
+                    const zType = (i === 0) ? 'STALKER' : 'NORMAL';
+                    const texture = (zType === 'STALKER') ? 'zombie_stalker' : 'zombie_normal';
+                    
+                    let z = this.zombieGroup.get(x + offsetSlotX, y + offsetSlotY, texture);
+                    if (z) {
+                        z.runnerDirection = -1; // 기본 방향
+                        z.activate(zType, 1);
+                        z.targetBox = box;
+                        z.boxOffsetY = offsetSlotY;
+                    }
                 }
             }
 
@@ -1404,13 +1414,14 @@
 
             breakBox(box) {
                 box.destroy();
-                showSubtitle("보급 상자 격파! 스토커 좀비 출현!", 1500);
+                showSubtitle("보급 상자 격파! 알약 출현!", 1500);
 
-                // 상자 위치에 STALKER 좀비 생성
-                let stalker = this.zombieGroup.get(box.x, box.y, 'zombie_stalker');
-                if (stalker) {
-                    stalker.activate('STALKER', 1);
-                }
+                // 상자 위치에 알약(pill) 생성
+                const pill = this.items.create(box.x, box.y, 'pill');
+                pill.setDepth(5);
+                pill.body.setSize(16, 16);
+                pill.isPill = true;
+                pill.body.setVelocity(60 * window.gameData.timeScale, 0);
             }
 
             rescueScientist(spawnX, spawnY) {
@@ -2436,6 +2447,8 @@
             this.knockbackTimer = 0;
             this.deathRotationSpeed = 8;
             this.passedPlayer = false;
+            this.targetBox = null;
+            this.boxOffsetY = 0;
         }
 
         activate(type, hp) {
@@ -2451,6 +2464,8 @@
             this.passedPlayer = false;
             this.setTint(0xffffff); // 기존 틴트 제거
             this.setScale(1.0);     // 기존 스케일 리셋
+            this.targetBox = null;
+            this.boxOffsetY = 0;
 
             if (type === 'NORMAL') {
                 this.setTexture('zombie_normal');
@@ -2486,28 +2501,41 @@
                 let vx = 0;
                 let vy = 0;
 
-                // NORMAL은 좌측 스폰하여 우측에 있는 플레이어를 향해 쫓아옴
-                // RUNNER는 우측 경고 생성 후 플레이어를 좌향으로 강타 돌진
-                if (this.zombieType === 'NORMAL') {
-                    // X축: 플레이어 방향(오른쪽)으로 전진
-                    vx = this.speed;
-                    // 플레이어보다 왼쪽에 있을 때만 Y축 추종, 플레이어를 지나치면 Y축 고정 (뒤로 자연스럽게 스쳐 지나가게 처리)
-                    if (this.x < player.x + 20) {
-                        vy = (player.y > this.y) ? this.speed * 0.5 : -this.speed * 0.5;
-                        this.passedPlayer = false;
+                // 상자 추적/매달리기 분기
+                if (this.targetBox) {
+                    if (this.targetBox.active && this.targetBox.scene) {
+                        vx = 60; // 상자 속도
+                        const targetY = this.targetBox.y + this.boxOffsetY;
+                        vy = (targetY > this.y) ? 60 : -60;
+                        if (Math.abs(targetY - this.y) < 5) vy = 0;
                     } else {
-                        vy = 0;
-                        this.passedPlayer = true;
+                        this.targetBox = null;
                     }
-                } else if (this.zombieType === 'RUNNER') {
-                    // 일직선 극강의 대시 질주 (Y고정, X축 좌향/우향 돌격)
-                    vx = this.speed * this.runnerDirection;
-                    if (this.runnerDirection === -1) {
-                        this.passedPlayer = (this.x < player.x - 20);
-                    } else {
-                        this.passedPlayer = (this.x > player.x + 20);
-                    }
-                } else if (this.zombieType === 'STALKER') {
+                }
+
+                if (!this.targetBox) {
+                    // NORMAL은 좌측 스폰하여 우측에 있는 플레이어를 향해 쫓아옴
+                    // RUNNER는 우측 경고 생성 후 플레이어를 좌향으로 강타 돌진
+                    if (this.zombieType === 'NORMAL') {
+                        // X축: 플레이어 방향(오른쪽)으로 전진
+                        vx = this.speed;
+                        // 플레이어보다 왼쪽에 있을 때만 Y축 추종, 플레이어를 지나치면 Y축 고정 (뒤로 자연스럽게 스쳐 지나가게 처리)
+                        if (this.x < player.x + 20) {
+                            vy = (player.y > this.y) ? this.speed * 0.5 : -this.speed * 0.5;
+                            this.passedPlayer = false;
+                        } else {
+                            vy = 0;
+                            this.passedPlayer = true;
+                        }
+                    } else if (this.zombieType === 'RUNNER') {
+                        // 일직선 극강의 대시 질주 (Y고정, X축 좌향/우향 돌격)
+                        vx = this.speed * this.runnerDirection;
+                        if (this.runnerDirection === -1) {
+                            this.passedPlayer = (this.x < player.x - 20);
+                        } else {
+                            this.passedPlayer = (this.x > player.x + 20);
+                        }
+                    } else if (this.zombieType === 'STALKER') {
                     // 사방 압박형 스토커 추적
                     const angle = Phaser.Math.Angle.Between(this.x, this.y, player.x, player.y);
                     vx = Math.cos(angle) * this.speed;
