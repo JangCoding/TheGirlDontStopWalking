@@ -1883,9 +1883,9 @@
                     let targetX, targetY;
                     let lerpSpeed;
                     if (this.isGameOver) {
-                        // 게임오버 시 플레이어 주변으로 몰려듦
-                        targetX = this.player.x + hz.xOffset * 0.8;
-                        targetY = this.player.y + hz.yOffset * 0.8;
+                        // 게임오버 시 플레이어 주변으로 몰려듦 (넓게 흩뿌려지도록 오프셋 스케일 확장)
+                        targetX = this.player.x + hz.xOffset * 2.5;
+                        targetY = this.player.y + hz.yOffset * 2.0;
                     } else {
                         const col = idx % 4;
                         const row = Math.floor(idx / 4);
@@ -2953,6 +2953,8 @@
             if (this.body) this.body.setSize(30, 40); // 물리 바디 1.25배 보정
             this.targetBox = null;
             this.boxOffsetY = 0;
+            this.gameOverOffsetX = undefined;
+            this.gameOverOffsetY = undefined;
 
             if (type === 'NORMAL') {
                 this.setTexture('zombie_normal');
@@ -2994,12 +2996,25 @@
                 let vy = 0;
 
                 if (this.scene.isGameOver) {
-                    // 게임오버 시 플레이어 주변으로 몰려듦
-                    const angle = Phaser.Math.Angle.Between(this.x, this.y, player.x, player.y);
-                    const speed = (this.zombieType === 'RUNNER') ? 180 : (this.speed || 60);
-                    vx = Math.cos(angle) * speed;
-                    vy = Math.sin(angle) * speed;
-                    this.setFlipX(vx > 0);
+                    // 게임오버 시 플레이어 주변으로 몰려듦 (넓게 흩뿌려지고 겹치지 않게 오프셋 부여)
+                    if (this.gameOverOffsetX === undefined || this.gameOverOffsetY === undefined) {
+                        this.gameOverOffsetX = Phaser.Math.Between(-80, 80);
+                        this.gameOverOffsetY = Phaser.Math.Between(-60, 60);
+                    }
+                    const targetX = player.x + this.gameOverOffsetX;
+                    const targetY = player.y + this.gameOverOffsetY;
+                    
+                    const dist = Phaser.Math.Distance.Between(this.x, this.y, targetX, targetY);
+                    if (dist < 5) {
+                        vx = 0;
+                        vy = 0;
+                    } else {
+                        const angle = Phaser.Math.Angle.Between(this.x, this.y, targetX, targetY);
+                        const speed = (this.zombieType === 'RUNNER') ? 180 : (this.speed || 60);
+                        vx = Math.cos(angle) * speed;
+                        vy = Math.sin(angle) * speed;
+                    }
+                    this.setFlipX((vx !== 0) ? (vx > 0) : (player.x > this.x));
                 } else if (this.targetBox) {
                     if (this.targetBox.active && this.targetBox.scene) {
                         vx = 60; // 상자 속도
