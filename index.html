@@ -2200,31 +2200,52 @@
                 this.player.setTexture('player_infected');
                 if (this.player.body) this.player.body.setVelocity(0, 0);
                 
-                // 게임오버 시 추가 10마리 랜덤 시간차 스폰 연출
+                // 즉시 양쪽에서 10마리씩 총 20마리 스폰
                 this.gameOverZombies = [];
                 for (let i = 0; i < 10; i++) {
-                    const delay = Phaser.Math.Between(0, 1800) / window.gameData.timeScale;
-                    this.time.delayedCall(delay, () => {
+                    const spawnY1 = Phaser.Math.Between(240, 380);
+                    let zL = new Zombie(this, -40, spawnY1);
+                    const typeL = Phaser.Math.RND.pick(['NORMAL', 'RUNNER', 'SPITTER']);
+                    zL.activate(typeL, 1);
+                    if (typeL === 'RUNNER') {
+                        zL.runnerDirection = 1;
+                        zL.setFlipX(true);
+                    }
+                    this.gameOverZombies.push(zL);
+
+                    const spawnY2 = Phaser.Math.Between(240, 380);
+                    let zR = new Zombie(this, 840, spawnY2);
+                    const typeR = Phaser.Math.RND.pick(['NORMAL', 'RUNNER', 'SPITTER']);
+                    zR.activate(typeR, 1);
+                    if (typeR === 'RUNNER') {
+                        zR.runnerDirection = -1;
+                        zR.setFlipX(false);
+                    }
+                    this.gameOverZombies.push(zR);
+                }
+
+                // 화면 흐려지는 동안 (3초 대기 + 1.5초 페이드아웃) 0.3초 간격으로 앞뒤 랜덤 스폰
+                this.gameOverSpawnTimer = this.time.addEvent({
+                    delay: 300 / window.gameData.timeScale,
+                    callback: () => {
                         if (this.isGameOver && this.scene.isActive('PlayScene')) {
-                            const isLeft = (i % 2 === 0);
+                            const isLeft = Math.random() < 0.5;
                             const spawnX = isLeft ? -40 : 840;
                             const spawnY = Phaser.Math.Between(240, 380);
-                            
-                            // 무작위 종류 선택
                             const zType = Phaser.Math.RND.pick(['NORMAL', 'RUNNER', 'SPITTER']);
+                            
                             let z = new Zombie(this, spawnX, spawnY);
                             z.activate(zType, 1);
-                            
-                            // 러너의 경우 플레이어 방향으로 질주하도록 방향 설정
                             if (zType === 'RUNNER') {
                                 z.runnerDirection = isLeft ? 1 : -1;
                                 z.setFlipX(isLeft);
                             }
-                            
                             this.gameOverZombies.push(z);
                         }
-                    }, [], this);
-                }
+                    },
+                    callbackScope: this,
+                    loop: true
+                });
 
                 stopSynthBeat();
                 if (window.bgmPlayer) window.bgmPlayer.pause();
@@ -2234,6 +2255,7 @@
                 this.time.delayedCall(3000 / window.gameData.timeScale, () => {
                     this.cameras.main.fadeOut(1500, 0, 0, 0);
                     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+                        if (this.gameOverSpawnTimer) this.gameOverSpawnTimer.destroy();
                         // HUD 오프
                         document.getElementById('hud-overlay').style.display = 'none';
                         
