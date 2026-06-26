@@ -1378,6 +1378,11 @@
                 // 게임 오버 상태일 때도 좀비 무리와 플레이어 상태 업데이트는 수행 (몰려들기 연출 지속)
                 this.player.update(modifiedDelta);
                 this.updateHordeFormation(modifiedDelta);
+                if (this.gameOverZombies) {
+                    this.gameOverZombies.forEach(z => {
+                        if (z.active) z.update(time, delta);
+                    });
+                }
                 return;
             }
 
@@ -2177,22 +2182,30 @@
                 this.player.setTexture('player_infected');
                 if (this.player.body) this.player.body.setVelocity(0, 0);
                 
-                // 주위 좀비들이 덮치는 비주얼 연출
-                for (let i = 0; i < 8; i++) {
-                    const rx = this.player.x + Phaser.Math.Between(-30, 30);
-                    const ry = this.player.y + Phaser.Math.Between(-30, 30);
-                    const swarmZombie = this.add.sprite(rx, ry, 'zombie_normal');
-                    swarmZombie.setDepth(12); // 플레이어보다 위에 렌더링
-                    swarmZombie.angle = Phaser.Math.Between(-45, 45);
-                    
-                    this.tweens.add({
-                        targets: swarmZombie,
-                        scale: 1.1,
-                        x: this.player.x + Phaser.Math.Between(-8, 8),
-                        y: this.player.y + Phaser.Math.Between(-8, 8),
-                        duration: 300 / window.gameData.timeScale,
-                        ease: 'Bounce.easeOut'
-                    });
+                // 게임오버 시 추가 10마리 랜덤 시간차 스폰 연출
+                this.gameOverZombies = [];
+                for (let i = 0; i < 10; i++) {
+                    const delay = Phaser.Math.Between(0, 1800) / window.gameData.timeScale;
+                    this.time.delayedCall(delay, () => {
+                        if (this.isGameOver && this.scene.isActive('PlayScene')) {
+                            const isLeft = (i % 2 === 0);
+                            const spawnX = isLeft ? -40 : 840;
+                            const spawnY = Phaser.Math.Between(240, 380);
+                            
+                            // 무작위 종류 선택
+                            const zType = Phaser.Math.RND.pick(['NORMAL', 'RUNNER', 'SPITTER']);
+                            let z = new Zombie(this, spawnX, spawnY);
+                            z.activate(zType, 1);
+                            
+                            // 러너의 경우 플레이어 방향으로 질주하도록 방향 설정
+                            if (zType === 'RUNNER') {
+                                z.runnerDirection = isLeft ? 1 : -1;
+                                z.setFlipX(isLeft);
+                            }
+                            
+                            this.gameOverZombies.push(z);
+                        }
+                    }, [], this);
                 }
 
                 stopSynthBeat();
