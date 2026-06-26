@@ -1826,8 +1826,9 @@
                     else if (zombieType === 'STALKER') texture = 'zombie_stalker';
                     else if (zombieType === 'SPITTER') texture = 'zombie_spitter';
                     
-                    // 아예 화면 우측 밖(850)에서 스폰하여, 무리 대형으로 쑤욱 기어들어가게 연출
-                    const hz = this.physics.add.sprite(850, ry, texture);
+                    // 아예 화면 우측 밖(850)에서 스폰하되, 게임오버 상태이면 무리 위치(rx)에 직접 스폰
+                    const startX = this.isGameOver ? rx : 850;
+                    const hz = this.physics.add.sprite(startX, ry, texture);
                     hz.setDepth(3);
                     hz.isElite = isElite;
                     hz.zombieType = zombieType;
@@ -1885,7 +1886,6 @@
                         // 게임오버 시 플레이어 주변으로 몰려듦
                         targetX = this.player.x + hz.xOffset * 0.8;
                         targetY = this.player.y + hz.yOffset * 0.8;
-                        lerpSpeed = 0.06 * window.gameData.timeScale; // 빠른 수렴 속도
                     } else {
                         const col = idx % 4;
                         const row = Math.floor(idx / 4);
@@ -1896,9 +1896,27 @@
                         lerpSpeed = speedFluctuation * window.gameData.timeScale;
                     }
 
-                    // 부드러운 선형 보간 이동 (LERP)
-                    hz.x = Phaser.Math.Linear(hz.x, targetX, lerpSpeed);
-                    hz.y = Phaser.Math.Linear(hz.y, Math.min(this.groundY, targetY), lerpSpeed);
+                    if (this.isGameOver) {
+                        // 게임오버 시 플레이어 주변으로 몰려듦 (기본 속도로 부드럽게 수렴하여 날아오지 않도록 개선)
+                        const dist = Phaser.Math.Distance.Between(hz.x, hz.y, targetX, targetY);
+                        if (dist > 1) {
+                            const angle = Phaser.Math.Angle.Between(hz.x, hz.y, targetX, targetY);
+                            const speed = hz.isElite ? 110 : 90;
+                            const moveDist = speed * (delta / 1000);
+                            
+                            if (moveDist >= dist) {
+                                hz.x = targetX;
+                                hz.y = targetY;
+                            } else {
+                                hz.x += Math.cos(angle) * moveDist;
+                                hz.y += Math.sin(angle) * moveDist;
+                            }
+                        }
+                    } else {
+                        // 부드러운 선형 보간 이동 (LERP)
+                        hz.x = Phaser.Math.Linear(hz.x, targetX, lerpSpeed);
+                        hz.y = Phaser.Math.Linear(hz.y, Math.min(this.groundY, targetY), lerpSpeed);
+                    }
                 });
             }
 
