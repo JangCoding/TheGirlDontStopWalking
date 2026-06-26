@@ -439,6 +439,7 @@
                 <button class="debug-btn" id="btn-rescue" onclick="toggleRescueStatus()">시민구출: NO</button>
                 <button class="debug-btn" onclick="addZombieCombo(5)">좀비콤보 +5</button>
                 <button class="debug-btn" onclick="clearZombies()">화면좀비 클리어</button>
+                <button class="debug-btn" onclick="spawnDebugBox()" style="grid-column: span 2; border-color: var(--neon-cyan);">보급상자 스폰</button>
             </div>
         </div>
 
@@ -645,6 +646,13 @@
             activeScene.zombieGroup.getChildren().forEach(zombie => {
                 zombie.deactivate();
             });
+        }
+    }
+
+    function spawnDebugBox() {
+        const activeScene = phaserGame.scene.getScene('PlayScene');
+        if (activeScene && phaserGame.scene.isActive('PlayScene')) {
+            activeScene.spawnItemBox();
         }
     }
 
@@ -875,6 +883,94 @@
                 ctx.fillRect(4, 2, 24, 4);
                 ctx.fillStyle = '#2c3e50'; // 안대
                 ctx.fillRect(8, 6, 8, 4);
+            });
+
+            // 크툴루박사 (Doctor Cthulhu)
+            this.createPixelTexture('citizen_cthulhu', 32, 32, (ctx) => {
+                // 자색 로브
+                ctx.fillStyle = '#8e44ad';
+                ctx.fillRect(4, 14, 24, 18);
+                // 청록색 머리/피부
+                ctx.fillStyle = '#1abc9c';
+                ctx.fillRect(8, 4, 16, 10);
+                // 연두색 촉수 (턱 아래)
+                ctx.fillStyle = '#2ecc71';
+                ctx.fillRect(10, 12, 4, 6);
+                ctx.fillRect(18, 12, 4, 6);
+                // 황색 눈
+                ctx.fillStyle = '#f1c40f';
+                ctx.fillRect(10, 6, 2, 2);
+                ctx.fillRect(20, 6, 2, 2);
+            });
+
+            // 고스트 (Ghost)
+            this.createPixelTexture('citizen_ghost', 32, 32, (ctx) => {
+                // 반투명한 발광 형광 하늘색 테두리
+                ctx.fillStyle = '#3498db';
+                ctx.fillRect(2, 2, 28, 28);
+                // 흰색 몸체
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(4, 4, 24, 26);
+                // 고스트 하단 꼬리 굴곡 지우기/투명화
+                ctx.clearRect(8, 28, 4, 4);
+                ctx.clearRect(20, 28, 4, 4);
+                // 검은 눈 구멍
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(8, 10, 4, 4);
+                ctx.fillRect(20, 10, 4, 4);
+            });
+
+            // 저승사자 (Grim Reaper)
+            this.createPixelTexture('citizen_reaper', 32, 32, (ctx) => {
+                // 검은 도포
+                ctx.fillStyle = '#1a1a1a';
+                ctx.fillRect(4, 14, 24, 18);
+                // 창백한 얼굴
+                ctx.fillStyle = '#eceff1';
+                ctx.fillRect(8, 4, 16, 10);
+                // 붉은 눈
+                ctx.fillStyle = '#e74c3c';
+                ctx.fillRect(10, 7, 2, 2);
+                ctx.fillRect(20, 7, 2, 2);
+                // 검은 선비 갓
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(2, 2, 28, 2); // 갓 챙
+                ctx.fillRect(8, 0, 16, 2);  // 갓 머리
+            });
+
+            // 혈버스터준 (Blood Buster Jun)
+            this.createPixelTexture('citizen_jun', 32, 32, (ctx) => {
+                // 붉은 코트
+                ctx.fillStyle = '#e74c3c';
+                ctx.fillRect(4, 14, 24, 18);
+                // 피부
+                ctx.fillStyle = '#ffcc99';
+                ctx.fillRect(8, 4, 16, 10);
+                // 갈색 머리카락
+                ctx.fillStyle = '#5c3a21';
+                ctx.fillRect(6, 2, 20, 3);
+                ctx.fillRect(6, 4, 3, 6);
+                ctx.fillRect(23, 4, 3, 6);
+                // 검은 선글라스
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(8, 6, 16, 3);
+            });
+
+            // 흑길동 (Black Gildong)
+            this.createPixelTexture('citizen_gildong', 32, 32, (ctx) => {
+                // 검은 전통 한복
+                ctx.fillStyle = '#111111';
+                ctx.fillRect(4, 14, 24, 18);
+                // 흰 동정 목깃
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(12, 14, 8, 2);
+                // 피부
+                ctx.fillStyle = '#ffcc99';
+                ctx.fillRect(8, 4, 16, 10);
+                // 검은 갓
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(2, 2, 28, 2); // 갓 챙
+                ctx.fillRect(10, 0, 12, 2); // 갓 머리
             });
 
             this.scene.start('TitleScene');
@@ -1119,6 +1215,17 @@
             window.gameData.totalEscortedCount = 0;
             window.gameData.distanceWalked = 0;
             this.isGameOver = false;
+            
+            // 일회성 스폰 특별 시민 캐릭터 풀 정의 (한 번 나오면 제거됨)
+            this.availableUniqueCitizens = [
+                { id: 'simtongbot', texture: 'citizen_simtongbot', name: '심통봇', color: '#9b59b6' },
+                { id: 'snake', texture: 'citizen_snake', name: '스네이크', color: '#2ecc71' },
+                { id: 'cthulhu', texture: 'citizen_cthulhu', name: '크툴루박사', color: '#1abc9c' },
+                { id: 'ghost', texture: 'citizen_ghost', name: '고스트', color: '#3498db' },
+                { id: 'reaper', texture: 'citizen_reaper', name: '저승사자', color: '#7f8c8d' },
+                { id: 'jun', texture: 'citizen_jun', name: '혈버스터준', color: '#e74c3c' },
+                { id: 'gildong', texture: 'citizen_gildong', name: '흑길동', color: '#f1c40f' }
+            ];
             
             document.getElementById('pills-display').innerText = '0';
             document.getElementById('combo-display').innerText = '0';
@@ -1534,17 +1641,20 @@
                         pill.isPill = true;
                         pill.body.setVelocity(60 * window.gameData.timeScale, 0);
                     } else {
-                        // 시민 50% 분기 (심통봇 1%, 스네이크 1%, 일반시민 98%)
+                        // 시민 50% 분기
+                        // 특별 시민 캐릭터 등장 확률 (남은 풀의 개수 * 1%)
+                        const uniqueChance = 0.01 * this.availableUniqueCitizens.length;
                         const citizenRoll = Math.random();
+                        
                         let citizenType = 'citizen_normal';
                         let name = '일반시민';
                         
-                        if (citizenRoll < 0.01) {
-                            citizenType = 'citizen_simtongbot';
-                            name = '심통봇';
-                        } else if (citizenRoll < 0.02) {
-                            citizenType = 'citizen_snake';
-                            name = '스네이크';
+                        if (citizenRoll < uniqueChance && this.availableUniqueCitizens.length > 0) {
+                            // 특별 시민 중 무작위로 하나 선택
+                            const randIndex = Phaser.Math.Between(0, this.availableUniqueCitizens.length - 1);
+                            const chosenCitizen = this.availableUniqueCitizens.splice(randIndex, 1)[0];
+                            citizenType = chosenCitizen.texture;
+                            name = chosenCitizen.name;
                         }
                         
                         showSubtitle(`보급 상자 격파! ${name} 구조 성공!`, 1500);
@@ -1601,8 +1711,19 @@
                 npc.setDepth(4);
                 
                 // 캐릭터에 따른 개별 아이콘 연출
-                const iconText = (name === '심통봇' || name === '스네이크') ? '★' : '♥';
-                const iconColor = (name === '심통봇') ? '#9b59b6' : (name === '스네이크' ? '#2ecc71' : '#ff3366');
+                const uniqueColors = {
+                    '심통봇': '#9b59b6',
+                    '스네이크': '#2ecc71',
+                    '크툴루박사': '#1abc9c',
+                    '고스트': '#3498db',
+                    '저승사자': '#7f8c8d',
+                    '혈버스터준': '#e74c3c',
+                    '흑길동': '#f1c40f'
+                };
+                
+                const isUnique = uniqueColors.hasOwnProperty(name);
+                const iconText = isUnique ? '★' : '♥';
+                const iconColor = isUnique ? uniqueColors[name] : '#ff3366';
                 
                 const icon = this.add.text(spawnX, spawnY - 30, iconText, {
                     fontFamily: 'Orbitron',
