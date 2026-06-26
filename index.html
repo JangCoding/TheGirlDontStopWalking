@@ -1700,7 +1700,8 @@
                 // 연구원 NPC 스폰
                 const npc = this.physics.add.sprite(spawnX, spawnY, 'scientist');
                 npc.setScale(1.0);
-                npc.body.setSize(68, 94);
+                npc.body.setSize(40, 20);
+                npc.body.setOffset(14, 74);
                 npc.setDepth(4);
                 
                 // 구조 느낌표 (!) 생성 (스케일 보정)
@@ -1754,7 +1755,8 @@
                 // 시민 NPC 스폰
                 const npc = this.physics.add.sprite(spawnX, spawnY, texture);
                 npc.setScale(1.0);
-                npc.body.setSize(68, 94);
+                npc.body.setSize(40, 20);
+                npc.body.setOffset(14, 74);
                 npc.setDepth(4);
                 
                 // 캐릭터에 따른 개별 아이콘 연출
@@ -2724,7 +2726,8 @@
             this.setDepth(10);
             this.setScale(1.0);
             this.body.setCollideWorldBounds(true);
-            this.body.setSize(60, 94); // 실제 가로 68, 세로 94 크기에 맞춤 (여백 고려 가로 60)
+            this.body.setSize(40, 20); // 발밑 충돌체 (40x20)
+            this.body.setOffset(14, 74); // 아래쪽에 배치 (94 - 20)
 
             // 상태 속성
             this.isInvincible = false;
@@ -2952,7 +2955,10 @@
             this.passedPlayer = false;
             this.setTint(0xffffff); // 기존 틴트 제거
             this.setScale(1.0);     // 기본 1.0배 스케일 적용 (68x102 텍스처 자체 반영)
-            if (this.body) this.body.setSize(60, 102); // 물리 바디 보정 (68x102)
+            if (this.body) {
+                this.body.setSize(40, 20); // 발밑 충돌체 (40x20)
+                this.body.setOffset(14, 82); // 아래쪽에 배치 (102 - 20)
+            }
             this.targetBox = null;
             this.boxOffsetY = 0;
             this.gameOverOffsetX = undefined;
@@ -2966,7 +2972,10 @@
                 if (hp > 1) {
                     this.setTint(0xff5555); // 붉은 핏빛 틴트 적용
                     this.setScale(1.2);    // 크기 확대 (1.2배 -> 가로 81.6, 세로 122.4)
-                    if (this.body) this.body.setSize(72, 122);
+                    if (this.body) {
+                        this.body.setSize(48, 24); // 발밑 충돌체 (48x24)
+                        this.body.setOffset(17, 98); // 아래쪽에 배치 (122.4 - 24)
+                    }
                     this.speed = 78 + Math.random() * 24; // 조금 더 빠르게 추적
                 }
             } else if (type === 'RUNNER') {
