@@ -1372,13 +1372,20 @@
         }
 
         update(time, delta) {
+            const modifiedDelta = delta * window.gameData.timeScale;
+
+            if (this.isGameOver) {
+                // 게임 오버 상태일 때도 좀비 무리와 플레이어 상태 업데이트는 수행 (몰려들기 연출 지속)
+                this.player.update(modifiedDelta);
+                this.updateHordeFormation(modifiedDelta);
+                return;
+            }
+
             // 디버그 키 토글 (`D`)
             if (Phaser.Input.Keyboard.JustDown(this.debugKey)) {
                 const panel = document.getElementById('debug-panel');
                 panel.style.display = (panel.style.display === 'none') ? 'flex' : 'none';
             }
-
-            const modifiedDelta = delta * window.gameData.timeScale;
 
             // 시간 업데이트 (음악 파일 유무에 따라 싱크)
             if (window.gameData.bgmSelected && window.bgmPlayer.src) {
@@ -1724,10 +1731,11 @@
                     ease: 'Quad.easeOut'
                 });
 
-                // 서서히 투명해지는 연출
+                // 서서히 투명해지면서 뒤로 밀리는 연출
                 this.tweens.add({
                     targets: [npc, icon],
                     alpha: 0,
+                    x: '+=144',
                     duration: 2400 / window.gameData.timeScale,
                     onComplete: () => {
                         npc.destroy();
@@ -1776,10 +1784,11 @@
                     ease: 'Quad.easeOut'
                 });
 
-                // 서서히 투명해지는 연출
+                // 서서히 투명해지면서 뒤로 밀리는 연출
                 this.tweens.add({
                     targets: [npc, icon],
                     alpha: 0,
+                    x: '+=144',
                     duration: 2400 / window.gameData.timeScale,
                     onComplete: () => {
                         npc.destroy();
@@ -1865,15 +1874,22 @@
                     const randomYMovement = Math.cos(time * hz.moveFrequency + hz.yNoiseSeed) * 16;
 
                     // 타겟 바인딩 포지션 (기본 대형 배치 + 개별 영구 오프셋 + 실시간 흔들림 노이즈)
-                    const col = idx % 4;
-                    const row = Math.floor(idx / 4);
-                    
-                    const targetX = 640 + col * 32 + hz.xOffset + randomXMovement;
-                    const targetY = 250 + row * 18 + hz.yOffset + randomYMovement; // 벨트스크롤 바닥 Y축 매칭 조정
-
-                    // 속도가 주기적으로 부드럽게 변하도록 코사인 파동 적용 (0.02 ~ 0.08)
-                    const speedFluctuation = 0.05 + Math.cos(time * hz.speedFrequency + hz.xNoiseSeed) * 0.03;
-                    const lerpSpeed = speedFluctuation * window.gameData.timeScale;
+                    let targetX, targetY;
+                    let lerpSpeed;
+                    if (this.isGameOver) {
+                        // 게임오버 시 플레이어 주변으로 몰려듦
+                        targetX = this.player.x + hz.xOffset * 0.8;
+                        targetY = this.player.y + hz.yOffset * 0.8;
+                        lerpSpeed = 0.06 * window.gameData.timeScale; // 빠른 수렴 속도
+                    } else {
+                        const col = idx % 4;
+                        const row = Math.floor(idx / 4);
+                        targetX = 640 + col * 32 + hz.xOffset + randomXMovement;
+                        targetY = 250 + row * 18 + hz.yOffset + randomYMovement; // 벨트스크롤 바닥 Y축 매칭 조정
+                        
+                        const speedFluctuation = 0.05 + Math.cos(time * hz.speedFrequency + hz.xNoiseSeed) * 0.03;
+                        lerpSpeed = speedFluctuation * window.gameData.timeScale;
+                    }
 
                     // 부드러운 선형 보간 이동 (LERP)
                     hz.x = Phaser.Math.Linear(hz.x, targetX, lerpSpeed);
@@ -1885,6 +1901,7 @@
             // 6. 충돌 및 이벤트 가위바위보 판정
             // ==========================================
             handlePlayerDamage(player, zombie) {
+                if (this.isGameOver) return;
                 // 마지막 스테이지(공사장, 180초 이상)에서는 좀비 상태이며 무적이므로 충돌 피해 없음
                 if (window.gameData.elapsedTime >= 180) return;
 
@@ -1923,6 +1940,7 @@
 
             handleSpitDamage(player, spit) {
                 spit.destroy();
+                if (this.isGameOver) return;
                 if (window.gameData.elapsedTime >= 180) return;
                 if (player.isInvincible) return;
 
@@ -2137,12 +2155,27 @@
                 if (this.isGameOver) return;
                 this.isGameOver = true;
 
-                // 플레이 도중 인간성 0: 좀비 감염 패배 연출 (쓰러짐 + 좀비 떼 덮침)
-                this.physics.pause();
-                
+                // 스폰 타이머 중지
+                if (this.spawnTimer) this.spawnTimer.destroy();
+                if (this.itemSpawnTimer) this.itemSpawnTimer.destroy();
+                if (this.naturalHordeTimer) this.naturalHordeTimer.destroy();
+
+                // 모든 상자, 알약, 독침 투사체 속도 0으로 설정하여 로드 정지 연출
+                this.items.getChildren().forEach(item => {
+                    if (item.active && item.body) {
+                        item.body.setVelocity(0, 0);
+                    }
+                });
+                this.spitProjectiles.getChildren().forEach(spit => {
+                    if (spit.active && spit.body) {
+                        spit.body.setVelocity(0, 0);
+                    }
+                });
+
                 // 플레이어 쓰러짐 연출 (-90도 꺾여 눕는 형태)
                 this.player.angle = -90;
                 this.player.setTexture('player_infected');
+                if (this.player.body) this.player.body.setVelocity(0, 0);
                 
                 // 주위 좀비들이 덮치는 비주얼 연출
                 for (let i = 0; i < 8; i++) {
@@ -2657,8 +2690,11 @@
         }
 
         update(delta) {
-            // 게임오버 시 조작 차단
-            if (window.gameData.currentHumanity <= 0) return;
+            // 게임오버 시 조작 차단 및 속도 정지
+            if (window.gameData.currentHumanity <= 0 || this.scene.isGameOver) {
+                if (this.body) this.body.setVelocity(0, 0);
+                return;
+            }
 
             // 1. 인간성 상태 변화에 따른 FSM 텍스처 실시간 스왑
             this.updateHumanity(delta);
@@ -2904,8 +2940,14 @@
                 let vx = 0;
                 let vy = 0;
 
-                // 상자 추적/매달리기 분기
-                if (this.targetBox) {
+                if (this.scene.isGameOver) {
+                    // 게임오버 시 플레이어 주변으로 몰려듦
+                    const angle = Phaser.Math.Angle.Between(this.x, this.y, player.x, player.y);
+                    const speed = (this.zombieType === 'RUNNER') ? 180 : (this.speed || 60);
+                    vx = Math.cos(angle) * speed;
+                    vy = Math.sin(angle) * speed;
+                    this.setFlipX(vx > 0);
+                } else if (this.targetBox) {
                     if (this.targetBox.active && this.targetBox.scene) {
                         vx = 60; // 상자 속도
                         const targetY = this.targetBox.y + this.boxOffsetY;
@@ -2916,7 +2958,7 @@
                     }
                 }
 
-                if (!this.targetBox) {
+                if (!this.scene.isGameOver && !this.targetBox) {
                     // NORMAL은 좌측 스폰하여 우측에 있는 플레이어를 향해 쫓아옴
                     // RUNNER는 우측 경고 생성 후 플레이어를 좌향으로 강타 돌진
                     if (this.zombieType === 'NORMAL') {
