@@ -973,6 +973,26 @@
                 ctx.fillRect(10, 0, 12, 2); // 갓 머리
             });
 
+            // 바이탈펑크맨 (Vital Punk Man)
+            this.createPixelTexture('citizen_vitalpunkman', 32, 32, (ctx) => {
+                // 펑키한 형광연두 자켓
+                ctx.fillStyle = '#39ff14';
+                ctx.fillRect(4, 14, 24, 18);
+                // 피부
+                ctx.fillStyle = '#ffcc99';
+                ctx.fillRect(8, 4, 16, 10);
+                // 핫핑크 닭벼슬/모히칸 머리
+                ctx.fillStyle = '#ff007f';
+                ctx.fillRect(14, 0, 4, 6);
+                ctx.fillRect(12, 1, 8, 3);
+                // 검은 고글/선글라스
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(8, 6, 16, 4);
+                // 붉은 머플러/장식
+                ctx.fillStyle = '#e74c3c';
+                ctx.fillRect(10, 14, 12, 3);
+            });
+
             this.scene.start('TitleScene');
         }
 
@@ -1224,7 +1244,8 @@
                 { id: 'ghost', texture: 'citizen_ghost', name: '고스트', color: '#3498db' },
                 { id: 'reaper', texture: 'citizen_reaper', name: '저승사자', color: '#7f8c8d' },
                 { id: 'jun', texture: 'citizen_jun', name: '혈버스터준', color: '#e74c3c' },
-                { id: 'gildong', texture: 'citizen_gildong', name: '흑길동', color: '#f1c40f' }
+                { id: 'gildong', texture: 'citizen_gildong', name: '흑길동', color: '#f1c40f' },
+                { id: 'vitalpunkman', texture: 'citizen_vitalpunkman', name: '바이탈펑크맨', color: '#ff007f' }
             ];
             
             document.getElementById('pills-display').innerText = '0';
@@ -1727,7 +1748,8 @@
                     '고스트': '#3498db',
                     '저승사자': '#7f8c8d',
                     '혈버스터준': '#e74c3c',
-                    '흑길동': '#f1c40f'
+                    '흑길동': '#f1c40f',
+                    '바이탈펑크맨': '#ff007f'
                 };
                 
                 const isUnique = uniqueColors.hasOwnProperty(name);
