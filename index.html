@@ -1687,10 +1687,11 @@
             rescueScientist(spawnX, spawnY) {
                 // 연구원 NPC 스폰
                 const npc = this.physics.add.sprite(spawnX, spawnY, 'scientist');
+                npc.setScale(1.25);
                 npc.setDepth(4);
                 
-                // 구조 느낌표 (!) 생성
-                const icon = this.add.text(spawnX, spawnY - 30, '!', {
+                // 구조 느낌표 (!) 생성 (스케일 보정)
+                const icon = this.add.text(spawnX, spawnY - 36, '!', {
                     fontFamily: 'Orbitron',
                     fontSize: '18px',
                     fill: '#00d2fc',
@@ -1738,6 +1739,7 @@
             rescueCitizen(spawnX, spawnY, texture, name) {
                 // 시민 NPC 스폰
                 const npc = this.physics.add.sprite(spawnX, spawnY, texture);
+                npc.setScale(1.25);
                 npc.setDepth(4);
                 
                 // 캐릭터에 따른 개별 아이콘 연출
@@ -1756,7 +1758,7 @@
                 const iconText = isUnique ? '★' : '♥';
                 const iconColor = isUnique ? uniqueColors[name] : '#ff3366';
                 
-                const icon = this.add.text(spawnX, spawnY - 30, iconText, {
+                const icon = this.add.text(spawnX, spawnY - 36, iconText, {
                     fontFamily: 'Orbitron',
                     fontSize: '18px',
                     fill: iconColor,
@@ -1811,10 +1813,10 @@
                     
                     if (isElite) {
                         hz.setTint(0xff5555); // 엘리트 좀비 모양(붉은 틴트) 유지
-                        hz.setScale(1.25);    // 엘리트 좀비 크기 유지
+                        hz.setScale(1.5);    // 엘리트 좀비 크기 유지 (1.5배)
                     } else {
                         hz.setTint(0xffffff);
-                        hz.setScale(1.0);
+                        hz.setScale(1.25);   // 일반 좀비 크기 유지 (1.25배)
                     }
 
                     // 개별 노이즈/랜덤 움직임 값 부여
@@ -2613,8 +2615,9 @@
             
             this.scene = scene;
             this.setDepth(10);
+            this.setScale(1.25);
             this.body.setCollideWorldBounds(true);
-            this.body.setSize(24, 32); // 충돌체 실보정
+            this.body.setSize(30, 40); // 충돌체 실보정 (1.25배 스케일 적용)
 
             // 상태 속성
             this.isInvincible = false;
@@ -2626,6 +2629,7 @@
             // 방망이 무기 스프라이트 부착 (공격 시 스윙 가시화)
             this.weapon = scene.add.sprite(x - 20, y, 'weapon_bat');
             this.weapon.setOrigin(0.8, 0.5);
+            this.weapon.setScale(1.25);
             this.weapon.setDepth(11);
             this.weapon.setVisible(false);
             
@@ -2686,8 +2690,8 @@
             }
 
             // 무기 배치 동기화 (주인공 몸체 좌측에 배치 - 좌향 공격)
-            this.weapon.x = this.x - 12;
-            this.weapon.y = this.y + 4;
+            this.weapon.x = this.x - 15;
+            this.weapon.y = this.y + 5;
             
             // 걸어가는 가벼운 틱 진동 효과 (애니메이션 폴백)
             if (vx !== 0 || vy !== 0) {
@@ -2724,13 +2728,13 @@
             this.weapon.setVisible(true);
             this.weapon.angle = 90; // 휘두르기 시작 각도
 
-            // 좌향 스윙 궤적 물리 히트박스 생성 (x좌표 좌측 배치)
-            const attackHitbox = new Phaser.Geom.Rectangle(this.x - 65, this.y - 20, 60, 40);
+            // 좌향 스윙 궤적 물리 히트박스 생성 (x좌표 좌측 배치 - 스케일 보정)
+            const attackHitbox = new Phaser.Geom.Rectangle(this.x - 80, this.y - 25, 75, 50);
 
             // 스윙 물리 효과 그리기 디버그용 사각형 임시 플래시
             let swingFlash = null;
             if (window.gameData.showHitboxes) {
-                swingFlash = this.scene.add.rectangle(this.x - 35, this.y, 60, 40, 0x00ffff, 0.4);
+                swingFlash = this.scene.add.rectangle(this.x - 42, this.y, 75, 50, 0x00ffff, 0.4);
             }
 
             // 방망이 회전 트위너
@@ -2817,7 +2821,8 @@
             this.setDepth(6);
             this.passedPlayer = false;
             this.setTint(0xffffff); // 기존 틴트 제거
-            this.setScale(1.0);     // 기존 스케일 리셋
+            this.setScale(1.25);     // 기본 1.25배 스케일 적용
+            if (this.body) this.body.setSize(30, 40); // 물리 바디 1.25배 보정
             this.targetBox = null;
             this.boxOffsetY = 0;
 
@@ -2828,7 +2833,8 @@
                 // 체력 2~3인 엘리트 좀비 비주얼/속도 튜닝
                 if (hp > 1) {
                     this.setTint(0xff5555); // 붉은 핏빛 틴트 적용
-                    this.setScale(1.25);    // 크기 확대
+                    this.setScale(1.5);    // 크기 확대 (1.5배)
+                    if (this.body) this.body.setSize(36, 48);
                     this.speed = 78 + Math.random() * 24; // 조금 더 빠르게 추적
                 }
             } else if (type === 'RUNNER') {
