@@ -2725,29 +2725,48 @@
             
             this.isAttacking = true;
             this.attackCooldown = true;
-            this.weapon.setVisible(true);
-            this.weapon.angle = 90; // 휘두르기 시작 각도
+            
+            const stageIdx = this.scene.stageIndex;
+            const isBat = (stageIdx === 1);
+            
+            // 리치 설정 (1, 3스테이지는 맨주먹/좀비주먹으로 짧음. 2스테이지는 야구배트로 원래 리치)
+            let reachWidth = isBat ? 75 : 50;
+            let reachHeight = isBat ? 50 : 40;
+            let reachOffsetX = isBat ? 80 : 55;
+            let reachOffsetY = isBat ? 25 : 20;
 
-            // 좌향 스윙 궤적 물리 히트박스 생성 (x좌표 좌측 배치 - 스케일 보정)
-            const attackHitbox = new Phaser.Geom.Rectangle(this.x - 80, this.y - 25, 75, 50);
+            // 좌향 스윙 궤적 물리 히트박스 생성 (x좌표 좌측 배치 - 스케일 및 무기별 보정)
+            const attackHitbox = new Phaser.Geom.Rectangle(this.x - reachOffsetX, this.y - reachOffsetY, reachWidth, reachHeight);
 
             // 스윙 물리 효과 그리기 디버그용 사각형 임시 플래시
             let swingFlash = null;
             if (window.gameData.showHitboxes) {
-                swingFlash = this.scene.add.rectangle(this.x - 42, this.y, 75, 50, 0x00ffff, 0.4);
+                const flashColor = isBat ? 0x00ffff : 0xffaa00; // 주먹은 주황빛 플래시
+                swingFlash = this.scene.add.rectangle(this.x - (reachOffsetX - reachWidth / 2), this.y, reachWidth, reachHeight, flashColor, 0.4);
             }
 
-            // 방망이 회전 트위너
-            this.scene.tweens.add({
-                targets: this.weapon,
-                angle: -90,
-                duration: 150 / window.gameData.timeScale,
-                onComplete: () => {
-                    this.weapon.setVisible(false);
+            if (isBat) {
+                this.weapon.setVisible(true);
+                this.weapon.angle = 90; // 휘두르기 시작 각도
+                
+                // 방망이 회전 트위너
+                this.scene.tweens.add({
+                    targets: this.weapon,
+                    angle: -90,
+                    duration: 150 / window.gameData.timeScale,
+                    onComplete: () => {
+                        this.weapon.setVisible(false);
+                        this.isAttacking = false;
+                        if (swingFlash) swingFlash.destroy();
+                    }
+                });
+            } else {
+                // 주먹은 무기 스프라이트 안 띄우고 150ms 후 공격 판정 완료
+                this.scene.time.delayedCall(150 / window.gameData.timeScale, () => {
                     this.isAttacking = false;
                     if (swingFlash) swingFlash.destroy();
-                }
-            });
+                });
+            }
 
             // 몬스터 데미지 타격 체킹
             this.scene.hitZombiesWithBat(attackHitbox);
