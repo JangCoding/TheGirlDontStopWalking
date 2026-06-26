@@ -2643,7 +2643,7 @@
             // 2. 키보드 움직임 제어
             let vx = 0;
             let vy = 0;
-            const speed = 120;
+            const speed = 100;
 
             if (this.scene.cursors.left.isDown || this.scene.wasd.left.isDown) {
                 vx = -speed;
@@ -2672,8 +2672,8 @@
             // 스케일 속도 보정
             this.body.setVelocity(vx * window.gameData.timeScale, vy * window.gameData.timeScale);
 
-            // 플레이 구역 범위 가두기 조항 (좌측 2/3 영역인 x: 30 ~ x: 530)
-            if (this.x < 30) this.x = 30;
+            // 플레이 구역 범위 가두기 조항 (화면의 왼쪽 1/5 지점인 x: 160 ~ x: 530)
+            if (this.x < 160) this.x = 160;
             if (this.x > 530) this.x = 530;
 
             // 상하 움직이는 영역 제한 (화면 바닥 400 기준 5%~40% 영역인 Y: 240 ~ Y: 380)
