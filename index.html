@@ -2246,17 +2246,17 @@
             showSubtitle("씁쓸한 희생: 그녀는 자신을 따르던 무리들을 이끌고 절벽 밑으로 걸어갔다.", 5000);
 
             // 중력 활성화하여 절벽 밑 낙하 연출 구현
-            this.physics.world.setGravityY(400);
+            this.physics.world.gravity.y = 400;
             
             // 플레이어 낙하
-            this.player.body.setGravityY(400);
+            this.player.body.gravity.y = 400;
             this.player.setVelocityX(-40); // 절벽 왼쪽 아래로 밀림
             
             // 순차적 좀비 낙하
             this.zombies.forEach((z, idx) => {
                 this.time.delayedCall(idx * 150 / window.gameData.timeScale, () => {
                     if (z && z.body) {
-                        z.body.setGravityY(400);
+                        z.body.gravity.y = 400;
                         z.setVelocityX(-50 - Math.random() * 30);
                     }
                 });
@@ -2359,7 +2359,7 @@
                     this.zombies.forEach((z, idx) => {
                         this.time.delayedCall(idx * 200 / window.gameData.timeScale, () => {
                             if (z && z.body) {
-                                z.body.setGravityY(400);
+                                z.body.gravity.y = 400;
                                 z.setVelocityX(-40 - Math.random() * 20);
                                 z.setVelocityY(-100); // 절벽 아래로 점프 낙하 느낌
                             }
@@ -2482,7 +2482,7 @@
             // 2. 키보드 움직임 제어
             let vx = 0;
             let vy = 0;
-            const speed = 135;
+            const speed = 120;
 
             if (this.scene.cursors.left.isDown || this.scene.wasd.left.isDown) {
                 vx = -speed;
@@ -2662,27 +2662,27 @@
 
             if (type === 'NORMAL') {
                 this.setTexture('zombie_normal');
-                this.speed = 50 + Math.random() * 20;
+                this.speed = 60 + Math.random() * 24;
                 
                 // 체력 2~3인 엘리트 좀비 비주얼/속도 튜닝
                 if (hp > 1) {
                     this.setTint(0xff5555); // 붉은 핏빛 틴트 적용
                     this.setScale(1.25);    // 크기 확대
-                    this.speed = 65 + Math.random() * 20; // 조금 더 빠르게 추적
+                    this.speed = 78 + Math.random() * 24; // 조금 더 빠르게 추적
                 }
             } else if (type === 'RUNNER') {
                 this.setTexture('zombie_runner');
-                this.speed = 300; // 대시 폭격
+                this.speed = 360; // 대시 폭격
                 if (this.runnerDirection === undefined) {
                     this.runnerDirection = -1;
                 }
                 this.setFlipX(this.runnerDirection === 1);
             } else if (type === 'STALKER') {
                 this.setTexture('zombie_stalker');
-                this.speed = 40;
+                this.speed = 48;
             } else if (type === 'SPITTER') {
                 this.setTexture('zombie_spitter');
-                this.speed = 50;
+                this.speed = 60;
                 this.lastSpitTime = 0;
             }
         }
@@ -2738,18 +2738,13 @@
                         vx = Math.cos(angle) * this.speed;
                         vy = Math.sin(angle) * this.speed;
                     } else if (this.zombieType === 'SPITTER') {
-                        // SPITTER는 x: 120까지 걸어온 후 멈춰서 플레이어를 향해 침 발사
-                        if (this.x < 120) {
-                            vx = this.speed;
-                            vy = 0;
-                        } else {
-                            vx = 0;
-                            vy = 0;
-                            const now = this.scene.time.now;
-                            if (now - this.lastSpitTime > 2000 / window.gameData.timeScale) {
-                                this.lastSpitTime = now;
-                                this.spitAtPlayer();
-                            }
+                        // SPITTER는 길가에 서서 흘러가듯 상자 속도로 우향 이동하며 침 발사
+                        vx = 60;
+                        vy = 0;
+                        const now = this.scene.time.now;
+                        if (now - this.lastSpitTime > 2000 / window.gameData.timeScale) {
+                            this.lastSpitTime = now;
+                            this.spitAtPlayer();
                         }
                     }
                 }
@@ -2760,7 +2755,7 @@
                 this.y += Math.sin(this.scene.time.now * 0.01 + this.x) * 0.2;
 
                 // 화면 밖 무의미하게 멀어지거나 뒤로 나가면 자동 deactive 풀 반환
-                if (this.zombieType === 'NORMAL' && this.x > 840) {
+                if ((this.zombieType === 'NORMAL' || this.zombieType === 'SPITTER') && this.x > 840) {
                     this.deactivate();
                 }
                 if (this.zombieType === 'RUNNER') {
