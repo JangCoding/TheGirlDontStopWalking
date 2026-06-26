@@ -718,77 +718,77 @@
 
         create() {
             // 사각형 기반 텍스처를 캔버스로 동적 드로잉
-            this.createPixelTexture('player_normal', 32, 32, (ctx) => {
+            this.createPixelTexture('player_normal', 68, 94, (ctx) => {
                 ctx.fillStyle = '#00d2fc'; // 하늘색 몸체
-                ctx.fillRect(0, 0, 32, 32);
+                ctx.fillRect(0, 0, 68, 94);
                 ctx.fillStyle = '#ffffff'; // 눈
-                ctx.fillRect(6, 6, 6, 8);
+                ctx.fillRect(12, 18, 12, 24);
                 ctx.fillStyle = '#000000'; // 눈동자 (좌향)
-                ctx.fillRect(6, 8, 3, 4);
+                ctx.fillRect(12, 24, 6, 12);
                 ctx.fillStyle = '#1e3d59'; // 옷 장식
-                ctx.fillRect(8, 20, 16, 12);
+                ctx.fillRect(16, 58, 36, 36);
             });
 
-            this.createPixelTexture('player_infecting', 32, 32, (ctx) => {
+            this.createPixelTexture('player_infecting', 68, 94, (ctx) => {
                 ctx.fillStyle = '#5cc8a6'; // 민트색 (감염중)
-                ctx.fillRect(0, 0, 32, 32);
+                ctx.fillRect(0, 0, 68, 94);
                 ctx.fillStyle = '#ffffff';
-                ctx.fillRect(6, 8, 6, 6);
+                ctx.fillRect(12, 24, 12, 18);
                 ctx.fillStyle = '#ff0055'; // 충혈된 동공
-                ctx.fillRect(6, 9, 3, 3);
+                ctx.fillRect(12, 27, 6, 9);
                 ctx.fillStyle = '#223e36';
-                ctx.fillRect(8, 20, 16, 12);
+                ctx.fillRect(16, 58, 36, 36);
             });
 
-            this.createPixelTexture('player_infected', 32, 32, (ctx) => {
+            this.createPixelTexture('player_infected', 68, 94, (ctx) => {
                 ctx.fillStyle = '#2c7a5f'; // 탁한 녹색 (감염완료)
-                ctx.fillRect(0, 0, 32, 32);
+                ctx.fillRect(0, 0, 68, 94);
                 ctx.fillStyle = '#ff3f3f'; // 완전 붉은 눈
-                ctx.fillRect(4, 8, 8, 8);
+                ctx.fillRect(8, 24, 18, 24);
                 ctx.fillStyle = '#ffffff'; // 핏발
-                ctx.fillRect(5, 11, 2, 2);
+                ctx.fillRect(10, 33, 4, 6);
                 ctx.fillStyle = '#1c3129';
-                ctx.fillRect(8, 20, 16, 12);
+                ctx.fillRect(16, 58, 36, 36);
             });
 
-            this.createPixelTexture('zombie_normal', 32, 32, (ctx) => {
+            this.createPixelTexture('zombie_normal', 68, 102, (ctx) => {
                 ctx.fillStyle = '#2ebd59'; // 일반좀비 녹색
-                ctx.fillRect(0, 0, 32, 32);
+                ctx.fillRect(0, 0, 68, 102);
                 ctx.fillStyle = '#ffffff';
-                ctx.fillRect(4, 6, 6, 6);
+                ctx.fillRect(8, 18, 14, 18);
                 ctx.fillStyle = '#000000'; // 초점 없는 눈동자
-                ctx.fillRect(5, 7, 3, 3);
+                ctx.fillRect(10, 21, 8, 9);
                 ctx.fillStyle = '#3c4043'; // 잿빛 누더기 옷
-                ctx.fillRect(8, 16, 16, 16);
+                ctx.fillRect(16, 50, 36, 52);
             });
 
-            this.createPixelTexture('zombie_runner', 32, 32, (ctx) => {
+            this.createPixelTexture('zombie_runner', 68, 102, (ctx) => {
                 ctx.fillStyle = '#ff3f3f'; // 돌진좀비 빨간색
-                ctx.fillRect(0, 0, 32, 32);
+                ctx.fillRect(0, 0, 68, 102);
                 ctx.fillStyle = '#ffff00'; // 노란 희번득한 눈
-                ctx.fillRect(4, 6, 6, 6);
+                ctx.fillRect(8, 18, 14, 18);
                 ctx.fillStyle = '#000000';
-                ctx.fillRect(4, 7, 3, 3);
+                ctx.fillRect(8, 21, 8, 9);
                 ctx.fillStyle = '#1a0000'; // 검은 가죽 재킷 느낌
-                ctx.fillRect(8, 16, 16, 16);
+                ctx.fillRect(16, 50, 36, 52);
             });
 
-            this.createPixelTexture('zombie_stalker', 32, 32, (ctx) => {
+            this.createPixelTexture('zombie_stalker', 68, 102, (ctx) => {
                 ctx.fillStyle = '#4f4f4f'; // 상자속좀비 어두운 회색
-                ctx.fillRect(0, 0, 32, 32);
+                ctx.fillRect(0, 0, 68, 102);
                 ctx.fillStyle = '#00ffff'; // 형광 하늘색 눈
-                ctx.fillRect(4, 6, 6, 6);
+                ctx.fillRect(8, 18, 14, 18);
                 ctx.fillStyle = '#2c3e50';
-                ctx.fillRect(8, 16, 16, 16);
+                ctx.fillRect(16, 50, 36, 52);
             });
 
-            this.createPixelTexture('zombie_spitter', 32, 32, (ctx) => {
+            this.createPixelTexture('zombie_spitter', 68, 102, (ctx) => {
                 ctx.fillStyle = '#8e44ad'; // 보라색 좀비 몸체
-                ctx.fillRect(0, 0, 32, 32);
+                ctx.fillRect(0, 0, 68, 102);
                 ctx.fillStyle = '#2ecc71'; // 연두색 눈/입가
-                ctx.fillRect(4, 4, 8, 8);
+                ctx.fillRect(8, 12, 18, 24);
                 ctx.fillStyle = '#e67e22'; // 크게 벌린 주황색 입
-                ctx.fillRect(16, 12, 10, 10);
+                ctx.fillRect(34, 38, 22, 30);
             });
 
             this.createPixelTexture('spit_acid', 12, 12, (ctx) => {
@@ -799,7 +799,7 @@
             });
 
             this.createPixelTexture('box', 40, 40, (ctx) => {
-                ctx.fillStyle = '#a0522d'; // 나무상자 브라운
+                ctx.fillStyle = '#a0522d'; // 나무상자 브황
                 ctx.fillRect(0, 0, 40, 40);
                 ctx.lineWidth = 4;
                 ctx.strokeStyle = '#5c2d16'; // 짙은 테두리
@@ -813,15 +813,15 @@
                 ctx.stroke();
             });
 
-            this.createPixelTexture('scientist', 32, 32, (ctx) => {
+            this.createPixelTexture('scientist', 68, 94, (ctx) => {
                 ctx.fillStyle = '#f5f5f5'; // 흰색 의사가운
-                ctx.fillRect(0, 0, 32, 32);
+                ctx.fillRect(0, 0, 68, 94);
                 ctx.fillStyle = '#ffcc99'; // 살구색 피부
-                ctx.fillRect(4, 4, 12, 10);
+                ctx.fillRect(8, 12, 26, 30);
                 ctx.fillStyle = '#00d2fc'; // 안경 표현
-                ctx.fillRect(4, 6, 8, 4);
+                ctx.fillRect(8, 18, 18, 12);
                 ctx.fillStyle = '#333333';
-                ctx.fillRect(6, 18, 20, 14);
+                ctx.fillRect(12, 52, 44, 42);
             });
 
             this.createPixelTexture('pill', 16, 16, (ctx) => {
@@ -856,141 +856,141 @@
                 ctx.fillRect(0, 0, 6, 6);
             });
 
-            this.createPixelTexture('citizen_normal', 32, 32, (ctx) => {
+            this.createPixelTexture('citizen_normal', 68, 94, (ctx) => {
                 ctx.fillStyle = '#ffcc99'; // 살구색 피부
-                ctx.fillRect(8, 2, 16, 12);
+                ctx.fillRect(16, 6, 36, 36);
                 ctx.fillStyle = '#3498db'; // 파란색 셔츠
-                ctx.fillRect(4, 14, 24, 10);
+                ctx.fillRect(8, 42, 52, 30);
                 ctx.fillStyle = '#2c3e50'; // 바지
-                ctx.fillRect(8, 24, 16, 8);
+                ctx.fillRect(16, 72, 36, 22);
             });
 
-            this.createPixelTexture('citizen_simtongbot', 32, 32, (ctx) => {
+            this.createPixelTexture('citizen_simtongbot', 68, 94, (ctx) => {
                 ctx.fillStyle = '#9b59b6'; // 보라색 몸체
-                ctx.fillRect(4, 8, 24, 20);
+                ctx.fillRect(8, 24, 52, 60);
                 ctx.fillStyle = '#f1c40f'; // 노란색 안테나
-                ctx.fillRect(14, 0, 4, 8);
+                ctx.fillRect(30, 0, 8, 24);
                 ctx.fillStyle = '#2ecc71'; // 초록색 스크린 눈
-                ctx.fillRect(8, 12, 16, 10);
+                ctx.fillRect(16, 36, 36, 30);
             });
 
-            this.createPixelTexture('citizen_snake', 32, 32, (ctx) => {
-                ctx.fillStyle = '#27ae60'; // 국방색 옷 (밀리터리 그린)
-                ctx.fillRect(4, 14, 24, 18);
+            this.createPixelTexture('citizen_snake', 68, 94, (ctx) => {
+                ctx.fillStyle = '#27ae60'; // 국방색 옷
+                ctx.fillRect(8, 42, 52, 52);
                 ctx.fillStyle = '#ffcc99'; // 피부
-                ctx.fillRect(8, 4, 16, 10);
+                ctx.fillRect(16, 12, 36, 30);
                 ctx.fillStyle = '#7f8c8d'; // 회색 헤드밴드
-                ctx.fillRect(4, 2, 24, 4);
+                ctx.fillRect(8, 6, 52, 12);
                 ctx.fillStyle = '#2c3e50'; // 안대
-                ctx.fillRect(8, 6, 8, 4);
+                ctx.fillRect(16, 18, 18, 12);
             });
 
             // 크툴루박사 (Doctor Cthulhu)
-            this.createPixelTexture('citizen_cthulhu', 32, 32, (ctx) => {
+            this.createPixelTexture('citizen_cthulhu', 68, 94, (ctx) => {
                 // 자색 로브
                 ctx.fillStyle = '#8e44ad';
-                ctx.fillRect(4, 14, 24, 18);
+                ctx.fillRect(8, 42, 52, 52);
                 // 청록색 머리/피부
                 ctx.fillStyle = '#1abc9c';
-                ctx.fillRect(8, 4, 16, 10);
+                ctx.fillRect(16, 12, 36, 30);
                 // 연두색 촉수 (턱 아래)
                 ctx.fillStyle = '#2ecc71';
-                ctx.fillRect(10, 12, 4, 6);
-                ctx.fillRect(18, 12, 4, 6);
+                ctx.fillRect(20, 36, 8, 18);
+                ctx.fillRect(40, 36, 8, 18);
                 // 황색 눈
                 ctx.fillStyle = '#f1c40f';
-                ctx.fillRect(10, 6, 2, 2);
-                ctx.fillRect(20, 6, 2, 2);
+                ctx.fillRect(20, 18, 4, 6);
+                ctx.fillRect(44, 18, 4, 6);
             });
 
             // 고스트 (Ghost)
-            this.createPixelTexture('citizen_ghost', 32, 32, (ctx) => {
+            this.createPixelTexture('citizen_ghost', 68, 94, (ctx) => {
                 // 반투명한 발광 형광 하늘색 테두리
                 ctx.fillStyle = '#3498db';
-                ctx.fillRect(2, 2, 28, 28);
+                ctx.fillRect(4, 6, 60, 82);
                 // 흰색 몸체
                 ctx.fillStyle = '#ffffff';
-                ctx.fillRect(4, 4, 24, 26);
+                ctx.fillRect(8, 12, 52, 76);
                 // 고스트 하단 꼬리 굴곡 지우기/투명화
-                ctx.clearRect(8, 28, 4, 4);
-                ctx.clearRect(20, 28, 4, 4);
+                ctx.clearRect(16, 82, 8, 12);
+                ctx.clearRect(44, 82, 8, 12);
                 // 검은 눈 구멍
                 ctx.fillStyle = '#000000';
-                ctx.fillRect(8, 10, 4, 4);
-                ctx.fillRect(20, 10, 4, 4);
+                ctx.fillRect(16, 30, 8, 12);
+                ctx.fillRect(44, 30, 8, 12);
             });
 
             // 저승사자 (Grim Reaper)
-            this.createPixelTexture('citizen_reaper', 32, 32, (ctx) => {
+            this.createPixelTexture('citizen_reaper', 68, 94, (ctx) => {
                 // 검은 도포
                 ctx.fillStyle = '#1a1a1a';
-                ctx.fillRect(4, 14, 24, 18);
+                ctx.fillRect(8, 42, 52, 52);
                 // 창백한 얼굴
                 ctx.fillStyle = '#eceff1';
-                ctx.fillRect(8, 4, 16, 10);
+                ctx.fillRect(16, 12, 36, 30);
                 // 붉은 눈
                 ctx.fillStyle = '#e74c3c';
-                ctx.fillRect(10, 7, 2, 2);
-                ctx.fillRect(20, 7, 2, 2);
+                ctx.fillRect(20, 21, 4, 6);
+                ctx.fillRect(44, 21, 4, 6);
                 // 검은 선비 갓
                 ctx.fillStyle = '#000000';
-                ctx.fillRect(2, 2, 28, 2); // 갓 챙
-                ctx.fillRect(8, 0, 16, 2);  // 갓 머리
+                ctx.fillRect(4, 6, 60, 6); // 갓 챙
+                ctx.fillRect(16, 0, 36, 6);  // 갓 머리
             });
 
             // 혈버스터준 (Blood Buster Jun)
-            this.createPixelTexture('citizen_jun', 32, 32, (ctx) => {
+            this.createPixelTexture('citizen_jun', 68, 94, (ctx) => {
                 // 붉은 코트
                 ctx.fillStyle = '#e74c3c';
-                ctx.fillRect(4, 14, 24, 18);
+                ctx.fillRect(8, 42, 52, 52);
                 // 피부
                 ctx.fillStyle = '#ffcc99';
-                ctx.fillRect(8, 4, 16, 10);
+                ctx.fillRect(16, 12, 36, 30);
                 // 갈색 머리카락
                 ctx.fillStyle = '#5c3a21';
-                ctx.fillRect(6, 2, 20, 3);
-                ctx.fillRect(6, 4, 3, 6);
-                ctx.fillRect(23, 4, 3, 6);
+                ctx.fillRect(12, 6, 44, 9);
+                ctx.fillRect(12, 12, 6, 18);
+                ctx.fillRect(50, 12, 6, 18);
                 // 검은 선글라스
                 ctx.fillStyle = '#000000';
-                ctx.fillRect(8, 6, 16, 3);
+                ctx.fillRect(16, 18, 36, 9);
             });
 
             // 흑길동 (Black Gildong)
-            this.createPixelTexture('citizen_gildong', 32, 32, (ctx) => {
+            this.createPixelTexture('citizen_gildong', 68, 94, (ctx) => {
                 // 검은 전통 한복
                 ctx.fillStyle = '#111111';
-                ctx.fillRect(4, 14, 24, 18);
+                ctx.fillRect(8, 42, 52, 52);
                 // 흰 동정 목깃
                 ctx.fillStyle = '#ffffff';
-                ctx.fillRect(12, 14, 8, 2);
+                ctx.fillRect(24, 42, 18, 6);
                 // 피부
                 ctx.fillStyle = '#ffcc99';
-                ctx.fillRect(8, 4, 16, 10);
+                ctx.fillRect(16, 12, 36, 30);
                 // 검은 갓
                 ctx.fillStyle = '#000000';
-                ctx.fillRect(2, 2, 28, 2); // 갓 챙
-                ctx.fillRect(10, 0, 12, 2); // 갓 머리
+                ctx.fillRect(4, 6, 60, 6); // 갓 챙
+                ctx.fillRect(20, 0, 28, 6);  // 갓 머리
             });
 
             // 바이탈펑크맨 (Vital Punk Man)
-            this.createPixelTexture('citizen_vitalpunkman', 32, 32, (ctx) => {
+            this.createPixelTexture('citizen_vitalpunkman', 68, 94, (ctx) => {
                 // 펑키한 형광연두 자켓
                 ctx.fillStyle = '#39ff14';
-                ctx.fillRect(4, 14, 24, 18);
+                ctx.fillRect(8, 42, 52, 52);
                 // 피부
                 ctx.fillStyle = '#ffcc99';
-                ctx.fillRect(8, 4, 16, 10);
+                ctx.fillRect(16, 12, 36, 30);
                 // 핫핑크 닭벼슬/모히칸 머리
                 ctx.fillStyle = '#ff007f';
-                ctx.fillRect(14, 0, 4, 6);
-                ctx.fillRect(12, 1, 8, 3);
+                ctx.fillRect(30, 0, 8, 18);
+                ctx.fillRect(24, 3, 18, 9);
                 // 검은 고글/선글라스
                 ctx.fillStyle = '#000000';
-                ctx.fillRect(8, 6, 16, 4);
+                ctx.fillRect(16, 18, 36, 12);
                 // 붉은 머플러/장식
                 ctx.fillStyle = '#e74c3c';
-                ctx.fillRect(10, 14, 12, 3);
+                ctx.fillRect(20, 42, 28, 9);
             });
 
             this.scene.start('TitleScene');
@@ -1159,13 +1159,13 @@
             showSubtitle("인류가 미처 대응하기도 전에 바이러스가 대지를 삼켰다.", 3500);
 
             // 좌측 방향으로 달리는 하늘색 사각형(플레이어) 연출 생성
-            const tempPlayer = this.add.rectangle(600, 220, 32, 32, 0x00d2fc);
-            const ground = this.add.rectangle(400, 250, 800, 10, 0x5d4037);
+            const tempPlayer = this.add.rectangle(600, 220, 68, 94, 0x00d2fc);
+            const ground = this.add.rectangle(400, 267, 800, 10, 0x5d4037);
 
             // 쫓아오는 좀비들
             const followZombies = [];
             for (let i = 0; i < 5; i++) {
-                let z = this.add.rectangle(750 + i * 40, 220, 32, 32, 0x2ebd59);
+                let z = this.add.rectangle(750 + i * 80, 216, 68, 102, 0x2ebd59);
                 followZombies.push(z);
             }
 
@@ -1699,7 +1699,8 @@
             rescueScientist(spawnX, spawnY) {
                 // 연구원 NPC 스폰
                 const npc = this.physics.add.sprite(spawnX, spawnY, 'scientist');
-                npc.setScale(1.25);
+                npc.setScale(1.0);
+                npc.body.setSize(68, 94);
                 npc.setDepth(4);
                 
                 // 구조 느낌표 (!) 생성 (스케일 보정)
@@ -1752,7 +1753,8 @@
             rescueCitizen(spawnX, spawnY, texture, name) {
                 // 시민 NPC 스폰
                 const npc = this.physics.add.sprite(spawnX, spawnY, texture);
-                npc.setScale(1.25);
+                npc.setScale(1.0);
+                npc.body.setSize(68, 94);
                 npc.setDepth(4);
                 
                 // 캐릭터에 따른 개별 아이콘 연출
@@ -1835,10 +1837,10 @@
                     
                     if (isElite) {
                         hz.setTint(0xff5555); // 엘리트 좀비 모양(붉은 틴트) 유지
-                        hz.setScale(1.5);    // 엘리트 좀비 크기 유지 (1.5배)
+                        hz.setScale(1.2);    // 엘리트 좀비 크기 유지 (1.2배)
                     } else {
                         hz.setTint(0xffffff);
-                        hz.setScale(1.25);   // 일반 좀비 크기 유지 (1.25배)
+                        hz.setScale(1.0);   // 일반 좀비 크기 유지 (1.0배)
                     }
 
                     // 개별 노이즈/랜덤 움직임 값 부여
@@ -2393,9 +2395,9 @@
                 
                 if (info.isElite) {
                     z.setTint(0xff5555);
-                    z.setScale(1.5);
+                    z.setScale(1.2);
                 } else {
-                    z.setScale(1.25);
+                    z.setScale(1.0);
                 }
                 
                 this.zombies.push(z);
@@ -2720,9 +2722,9 @@
             
             this.scene = scene;
             this.setDepth(10);
-            this.setScale(1.25);
+            this.setScale(1.0);
             this.body.setCollideWorldBounds(true);
-            this.body.setSize(30, 40); // 충돌체 실보정 (1.25배 스케일 적용)
+            this.body.setSize(60, 94); // 실제 가로 68, 세로 94 크기에 맞춤 (여백 고려 가로 60)
 
             // 상태 속성
             this.isInvincible = false;
@@ -2732,9 +2734,9 @@
             this.originalScale = 1;
             
             // 방망이 무기 스프라이트 부착 (공격 시 스윙 가시화)
-            this.weapon = scene.add.sprite(x - 20, y, 'weapon_bat');
+            this.weapon = scene.add.sprite(x - 30, y + 10, 'weapon_bat');
             this.weapon.setOrigin(0.8, 0.5);
-            this.weapon.setScale(1.25);
+            this.weapon.setScale(2.0); // 커진 캐릭터에 맞춰 무기 스케일 조정
             this.weapon.setDepth(11);
             this.weapon.setVisible(false);
             
@@ -2798,8 +2800,8 @@
             }
 
             // 무기 배치 동기화 (주인공 몸체 좌측에 배치 - 좌향 공격)
-            this.weapon.x = this.x - 15;
-            this.weapon.y = this.y + 5;
+            this.weapon.x = this.x - 30;
+            this.weapon.y = this.y + 10;
             
             // 걸어가는 가벼운 틱 진동 효과 (애니메이션 폴백)
             if (vx !== 0 || vy !== 0) {
@@ -2838,10 +2840,10 @@
             const isBat = (stageIdx === 1);
             
             // 리치 설정 (1, 3스테이지는 맨주먹/좀비주먹으로 짧음. 2스테이지는 야구배트로 원래 리치)
-            let reachWidth = isBat ? 75 : 50;
-            let reachHeight = isBat ? 50 : 40;
-            let reachOffsetX = isBat ? 80 : 55;
-            let reachOffsetY = isBat ? 25 : 20;
+            let reachWidth = isBat ? 100 : 65;
+            let reachHeight = isBat ? 70 : 50;
+            let reachOffsetX = isBat ? 124 : 89;
+            let reachOffsetY = isBat ? 35 : 25;
 
             // 좌향 스윙 궤적 물리 히트박스 생성 (x좌표 좌측 배치 - 스케일 및 무기별 보정)
             const attackHitbox = new Phaser.Geom.Rectangle(this.x - reachOffsetX, this.y - reachOffsetY, reachWidth, reachHeight);
@@ -2949,8 +2951,8 @@
             this.setDepth(6);
             this.passedPlayer = false;
             this.setTint(0xffffff); // 기존 틴트 제거
-            this.setScale(1.25);     // 기본 1.25배 스케일 적용
-            if (this.body) this.body.setSize(30, 40); // 물리 바디 1.25배 보정
+            this.setScale(1.0);     // 기본 1.0배 스케일 적용 (68x102 텍스처 자체 반영)
+            if (this.body) this.body.setSize(60, 102); // 물리 바디 보정 (68x102)
             this.targetBox = null;
             this.boxOffsetY = 0;
             this.gameOverOffsetX = undefined;
@@ -2963,8 +2965,8 @@
                 // 체력 2~3인 엘리트 좀비 비주얼/속도 튜닝
                 if (hp > 1) {
                     this.setTint(0xff5555); // 붉은 핏빛 틴트 적용
-                    this.setScale(1.5);    // 크기 확대 (1.5배)
-                    if (this.body) this.body.setSize(36, 48);
+                    this.setScale(1.2);    // 크기 확대 (1.2배 -> 가로 81.6, 세로 122.4)
+                    if (this.body) this.body.setSize(72, 122);
                     this.speed = 78 + Math.random() * 24; // 조금 더 빠르게 추적
                 }
             } else if (type === 'RUNNER') {
