@@ -1802,14 +1802,21 @@
             }
 
             // 좀비 격파 후 군단에 추가
-            addZombiesToHorde(count, isElite = false) {
+            addZombiesToHorde(count, isElite = false, zombieType = 'NORMAL') {
                 for (let i = 0; i < count; i++) {
                     const rx = Phaser.Math.Between(580, 780);
                     const ry = Phaser.Math.Between(240, 360);
+                    
+                    let texture = 'zombie_normal';
+                    if (zombieType === 'RUNNER') texture = 'zombie_runner';
+                    else if (zombieType === 'STALKER') texture = 'zombie_stalker';
+                    else if (zombieType === 'SPITTER') texture = 'zombie_spitter';
+                    
                     // 아예 화면 우측 밖(850)에서 스폰하여, 무리 대형으로 쑤욱 기어들어가게 연출
-                    const hz = this.physics.add.sprite(850, ry, 'zombie_normal');
+                    const hz = this.physics.add.sprite(850, ry, texture);
                     hz.setDepth(3);
                     hz.isElite = isElite;
+                    hz.zombieType = zombieType;
                     
                     if (isElite) {
                         hz.setTint(0xff5555); // 엘리트 좀비 모양(붉은 틴트) 유지
@@ -2189,6 +2196,10 @@
 
         triggerEpilogueSequence() {
             // 에필로그 270초 생존 도달: 페이드아웃 후 절벽 에필로그 연출 씬 시작
+            window.gameData.hordeList = this.hordeZombies.map(hz => ({
+                isElite: hz.isElite || false,
+                zombieType: hz.zombieType || 'NORMAL'
+            }));
             this.scene.stop('PlayScene');
             this.scene.start('EndingScene');
         }
@@ -2279,17 +2290,25 @@
 
             // 좀비 무리들이 플레이어 바로 뒤로 조여오며 줄지어 따라오기 연출 (EX2 스크린샷 매칭)
             this.zombies = [];
+            const hordeList = window.gameData.hordeList || [];
             const zombieCount = Math.max(12, Math.min(30, window.gameData.totalEscortedCount));
-            const eliteCount = window.gameData.eliteHordeCount || 0;
             for (let i = 0; i < zombieCount; i++) {
                 let rx = 800 + i * 20 + Phaser.Math.Between(-10, 10);
                 let ry = 310 + Phaser.Math.Between(-15, 15);
-                let z = this.physics.add.sprite(rx, ry, 'zombie_normal');
+                
+                const info = hordeList[i] || { isElite: false, zombieType: 'NORMAL' };
+                let texture = 'zombie_normal';
+                if (info.zombieType === 'RUNNER') texture = 'zombie_runner';
+                else if (info.zombieType === 'STALKER') texture = 'zombie_stalker';
+                else if (info.zombieType === 'SPITTER') texture = 'zombie_spitter';
+                
+                let z = this.physics.add.sprite(rx, ry, texture);
                 z.setDepth(5);
                 
-                // 앞에서부터 eliteCount 만큼 엘리트 좀비 비주얼 지정
-                if (i < eliteCount) {
+                if (info.isElite) {
                     z.setTint(0xff5555);
+                    z.setScale(1.5);
+                } else {
                     z.setScale(1.25);
                 }
                 
@@ -2831,6 +2850,7 @@
         activate(type, hp) {
             this.zombieType = type;
             this.hp = hp;
+            this.isElite = (type === 'NORMAL' && hp > 1);
             this.currentState = 'CHASING';
             this.angle = 0;
             this.alpha = 1.0;
@@ -2971,7 +2991,7 @@
                 // 화면 우측 또는 아래로 완전히 사라졌는지 판정 (X축 화면 밖으로 멀리 보내기)
                 if (this.x > 850 || this.y > 500) {
                     // 뒤쪽 콤보 무리(Grouping) 목록으로 통합 이적
-                    this.scene.addZombiesToHorde(1, this.isElite);
+                    this.scene.addZombiesToHorde(1, this.isElite, this.zombieType);
                     this.deactivate();
                 }
             }
