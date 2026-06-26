@@ -2204,9 +2204,9 @@
                 this.player.setTexture('player_infected');
                 if (this.player.body) this.player.body.setVelocity(0, 0);
                 
-                // 즉시 양쪽에서 10마리씩 총 20마리 스폰
+                // 즉시 양쪽에서 3마리씩 총 6마리 스폰
                 this.gameOverZombies = [];
-                for (let i = 0; i < 10; i++) {
+                for (let i = 0; i < 3; i++) {
                     const spawnY1 = Phaser.Math.Between(240, 380);
                     let zL = new Zombie(this, -40, spawnY1);
                     const typeL = Phaser.Math.RND.pick(['NORMAL', 'RUNNER', 'SPITTER']);
