@@ -1692,12 +1692,21 @@
 
                 showSubtitle(`연구원 구출 성공! 현재 (${window.gameData.rescuedScientists} / 3)`, 3000);
 
-                // 우측 방향으로 탈출해 밀려나는 연출
+                // 제자리 점프 연출 (Y축 바운스 3~4회)
                 this.tweens.add({
                     targets: [npc, icon],
-                    x: '+=300',
+                    y: '-=30',
+                    duration: 300 / window.gameData.timeScale,
+                    yoyo: true,
+                    repeat: 3, // 최초 1회 + 반복 3회 = 총 4회 점프
+                    ease: 'Quad.easeOut'
+                });
+
+                // 서서히 투명해지는 연출
+                this.tweens.add({
+                    targets: [npc, icon],
                     alpha: 0,
-                    duration: 2500 / window.gameData.timeScale,
+                    duration: 2400 / window.gameData.timeScale,
                     onComplete: () => {
                         npc.destroy();
                         icon.destroy();
@@ -1733,12 +1742,21 @@
                     strokeThickness: 2
                 }).setOrigin(0.5);
 
-                // 우측 방향으로 탈출해 밀려나는 연출
+                // 제자리 점프 연출 (Y축 바운스 3~4회)
                 this.tweens.add({
                     targets: [npc, icon],
-                    x: '+=300',
+                    y: '-=30',
+                    duration: 300 / window.gameData.timeScale,
+                    yoyo: true,
+                    repeat: 3, // 최초 1회 + 반복 3회 = 총 4회 점프
+                    ease: 'Quad.easeOut'
+                });
+
+                // 서서히 투명해지는 연출
+                this.tweens.add({
+                    targets: [npc, icon],
                     alpha: 0,
-                    duration: 2500 / window.gameData.timeScale,
+                    duration: 2400 / window.gameData.timeScale,
                     onComplete: () => {
                         npc.destroy();
                         icon.destroy();
